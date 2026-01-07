@@ -10,23 +10,36 @@ export const config = {
 };
 
 export default async function handler(req) {
-  const DB_KEY = "user_secure_notes_v2"; // 升级key，避免和旧数据冲突
+  const url = new URL(req.url);
+  // 你的数据钥匙
+  const DB_KEY = "user_secure_notes_v2"; 
 
-  // --- 1. 密码拦截 (核心新增) ---
-  // 从请求头获取密码
+  // --- ❤️ 自动保活逻辑 (Vercel 会每天调这个接口) ---
+  if (url.searchParams.get('heartbeat') === '1') {
+    try {
+      // 只要读取一次，Upstash 就认为你是活跃的，不会删除数据
+      await redis.exists(DB_KEY); 
+      console.log('Heartbeat check success');
+      return new Response('Alive', { status: 200 });
+    } catch(e) {
+      return new Response('Error', { status: 500 });
+    }
+  }
+
+  // --- 以下是正常笔记功能的逻辑 ---
+
+  // 1. 密码拦截
   const authHeader = req.headers.get('Authorization');
   const correctPassword = process.env.NOTES_PASSWORD; 
 
-  // 如果没有设置环境变量密码，则默认不拦截（或者你可以强制要求设置）
   if (correctPassword && authHeader !== correctPassword) {
-    return new Response(JSON.stringify({ error: '密码错误或未授权' }), { status: 401 });
+    return new Response(JSON.stringify({ error: '401' }), { status: 401 });
   }
 
-  // --- 2. 业务逻辑 ---
+  // 2. 保存数据 (POST)
   if (req.method === 'POST') {
     try {
       const data = await req.json();
-      // 简单存储，合并逻辑交给前端做，后端只负责“保存最新的完整快照”
       await redis.set(DB_KEY, JSON.stringify(data));
       return new Response(JSON.stringify({ success: true }), { status: 200 });
     } catch (err) {
@@ -34,6 +47,7 @@ export default async function handler(req) {
     }
   }
 
+  // 3. 读取数据 (GET)
   try {
     const data = await redis.get(DB_KEY);
     return new Response(JSON.stringify(data || {}), { status: 200, headers: {'Content-Type': 'application/json'} });

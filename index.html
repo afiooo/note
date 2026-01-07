@@ -3,498 +3,375 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>云同步便签 Pro</title>
+    <title>极速云便签</title>
     <style>
-        /* --- CSS 变量与主题定义 --- */
+        /* --- 极简 CSS 变量 --- */
         :root {
-            --bg: #ffffff;
-            --bg-sec: #f5f5f5;
-            --text: #333333;
-            --text-sec: #666666;
-            --border: #dddddd;
-            --accent: #0070f3;
-            --accent-bg: #e6f1ff;
-            --danger: #ff4d4f;
-            --highlight: #ffeb3b;
-            --highlight-text: #000;
+            --bg: #ffffff; --text: #222; --border: #e0e0e0; --bg-sec: #f7f7f7;
+            --accent: #0070f3; --highlight: #ffe066; --danger: #ff4d4f;
         }
-
         [data-theme="dark"] {
-            --bg: #121212;
-            --bg-sec: #1e1e1e;
-            --text: #e0e0e0;
-            --text-sec: #a0a0a0;
-            --border: #333333;
-            --accent: #4dabf7;
-            --accent-bg: #1a2733;
-            --danger: #ff6b6b;
-            --highlight: #bcb237;
+            --bg: #121212; --text: #e0e0e0; --border: #333; --bg-sec: #1e1e1e;
+            --accent: #4dabf7; --highlight: #665c14; --danger: #ff6b6b;
         }
 
-        /* --- 基础布局 --- */
+        /* --- 基础布局 (追求渲染速度) --- */
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body, html { margin: 0; padding: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); overflow: hidden; display: flex; flex-direction: column; transition: background 0.3s, color 0.3s; }
+        body, html { margin: 0; padding: 0; height: 100%; font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); display: flex; flex-direction: column; overflow: hidden; transition: background 0.2s, color 0.2s; }
 
-        /* --- 顶部导航栏 --- */
-        .header { height: 50px; padding: 0 12px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border); background: var(--bg-sec); flex-shrink: 0; }
+        /* --- 顶部工具栏 (回归直观) --- */
+        .header { height: 48px; padding: 0 10px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--border); background: var(--bg-sec); flex-shrink: 0; }
         
         /* 搜索框 */
         .search-box { flex: 1; position: relative; }
-        .search-box input { width: 100%; padding: 8px 30px 8px 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--text); outline: none; font-size: 14px; }
-        .search-box input:focus { border-color: var(--accent); }
-        .search-clear { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); color: var(--text-sec); cursor: pointer; display: none; }
-        
-        /* 菜单按钮 */
-        .icon-btn { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--text); cursor: pointer; font-size: 18px; }
-        .icon-btn:active { background: var(--bg-sec); }
+        .search-box input { width: 100%; height: 32px; padding: 0 28px 0 8px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); color: var(--text); outline: none; font-size: 14px; }
+        .search-clear { position: absolute; right: 0; top: 0; height: 32px; width: 30px; display: flex; align-items: center; justify-content: center; color: #999; cursor: pointer; display: none; }
 
+        /* 功能按钮组 (图标化) */
+        .btn-group { display: flex; gap: 4px; }
+        .icon-btn { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); color: var(--text); cursor: pointer; font-size: 16px; user-select: none; }
+        .icon-btn:active { background: var(--border); }
+        
         /* --- 标签栏 --- */
-        .tabs-wrapper { height: 44px; background: var(--bg-sec); border-bottom: 1px solid var(--border); display: flex; align-items: center; overflow: hidden; flex-shrink: 0; }
-        .tabs { flex: 1; display: flex; overflow-x: auto; height: 100%; scrollbar-width: none; }
+        .tabs-wrap { height: 40px; background: var(--bg-sec); border-bottom: 1px solid var(--border); display: flex; overflow: hidden; flex-shrink: 0; }
+        .tabs { flex: 1; display: flex; overflow-x: auto; scrollbar-width: none; }
         .tabs::-webkit-scrollbar { display: none; }
         
-        .tab { padding: 0 16px; height: 100%; display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--text-sec); border-right: 1px solid var(--border); white-space: nowrap; cursor: pointer; user-select: none; transition: background 0.2s; }
+        .tab { padding: 0 15px; display: flex; align-items: center; gap: 8px; font-size: 13px; color: #666; border-right: 1px solid var(--border); white-space: nowrap; cursor: pointer; user-select: none; position: relative; }
         .tab.active { background: var(--bg); color: var(--accent); font-weight: 600; border-top: 2px solid var(--accent); }
-        .tab-close { font-size: 16px; opacity: 0.6; padding: 4px; border-radius: 50%; }
-        .tab-close:hover { opacity: 1; color: var(--danger); background: rgba(0,0,0,0.05); }
+        .tab-close { font-size: 14px; opacity: 0.5; width: 20px; text-align: center; }
+        .tab-close:hover { opacity: 1; color: var(--danger); font-weight: bold; }
         
-        .add-tab-btn { width: 44px; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 20px; cursor: pointer; background: var(--bg-sec); border-left: 1px solid var(--border); color: var(--text); flex-shrink: 0; }
-        .add-tab-btn:active { background: #ddd; }
+        .add-btn { width: 40px; display: flex; align-items: center; justify-content: center; font-size: 20px; cursor: pointer; border-left: 1px solid var(--border); background: var(--bg-sec); color: var(--text); }
 
-        /* --- 主编辑区 --- */
-        .main-area { flex: 1; position: relative; overflow: hidden; }
+        /* --- 编辑区 --- */
+        .editor-container { flex: 1; position: relative; }
+        #editor { width: 100%; height: 100%; border: none; padding: 15px; font-size: 16px; line-height: 1.6; resize: none; outline: none; background: var(--bg); color: var(--text); font-family: inherit; display: block; }
         
-        /* 编辑器 */
-        #editor { width: 100%; height: 100%; border: none; padding: 16px; font-size: 16px; line-height: 1.6; resize: none; outline: none; background: var(--bg); color: var(--text); font-family: inherit; }
-        
-        /* 高亮视图 (只读) */
-        #highlightView { position: absolute; top: 0; left: 0; width: 100%; height: 100%; padding: 16px; font-size: 16px; line-height: 1.6; background: var(--bg); color: var(--text); overflow-y: auto; white-space: pre-wrap; z-index: 5; display: none; pointer-events: auto; }
-        mark { background: var(--highlight); color: var(--highlight-text); border-radius: 2px; }
+        /* 高亮阅读层 (搜索时显示) */
+        #highlight-layer { position: absolute; inset: 0; padding: 15px; font-size: 16px; line-height: 1.6; background: var(--bg); color: var(--text); overflow-y: auto; white-space: pre-wrap; z-index: 5; display: none; }
+        mark { background: var(--highlight); color: #000; border-radius: 2px; }
 
-        /* --- 底部状态栏 --- */
-        .footer { height: 30px; display: flex; justify-content: space-between; align-items: center; padding: 0 12px; font-size: 11px; color: var(--text-sec); border-top: 1px solid var(--border); background: var(--bg-sec); flex-shrink: 0; }
-        .status-indicator { display: flex; align-items: center; gap: 6px; }
-        .dot { width: 8px; height: 8px; border-radius: 50%; background: #999; }
-        .dot.ok { background: #28a745; }
-        .dot.sync { background: #ffc107; }
-        .dot.err { background: #ff4d4f; }
+        /* --- 底部 --- */
+        .footer { height: 26px; padding: 0 10px; font-size: 11px; color: #888; border-top: 1px solid var(--border); background: var(--bg-sec); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+        .dot { width: 6px; height: 6px; border-radius: 50%; background: #ccc; display: inline-block; margin-right: 4px; }
+        .dot.ok { background: #28a745; } .dot.sync { background: #ffc107; } .dot.err { background: #ff4d4f; }
 
-        /* --- 弹出菜单 (Dropdown) --- */
-        .menu-dropdown { position: absolute; top: 55px; right: 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); width: 160px; z-index: 100; display: none; flex-direction: column; overflow: hidden; }
-        .menu-dropdown.show { display: flex; }
-        .menu-item { padding: 12px 16px; font-size: 14px; cursor: pointer; border-bottom: 1px solid var(--border); color: var(--text); display: flex; align-items: center; gap: 8px; }
-        .menu-item:last-child { border-bottom: none; }
-        .menu-item:active { background: var(--accent-bg); }
-        .menu-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 99; display: none; }
-
-        /* --- 密码模态框 --- */
-        #authModal { position: fixed; inset: 0; background: var(--bg); z-index: 999; display: flex; flex-direction: column; justify-content: center; align-items: center; }
-        .auth-box { width: 80%; max-width: 300px; text-align: center; }
-        .auth-box input { width: 100%; padding: 12px; margin: 15px 0; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-sec); color: var(--text); outline: none; }
-        .auth-box button { width: 100%; padding: 12px; background: var(--accent); color: #fff; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; }
+        /* --- 密码层 --- */
+        #auth-mask { position: fixed; inset: 0; background: var(--bg); z-index: 999; display: flex; justify-content: center; align-items: center; }
+        .auth-box { width: 260px; text-align: center; }
+        .auth-box input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid var(--border); background: var(--bg-sec); color: var(--text); }
+        .auth-box button { width: 100%; padding: 10px; background: var(--accent); color: #fff; border: none; cursor: pointer; }
     </style>
 </head>
 <body>
 
-    <!-- 1. 密码保护层 -->
-    <div id="authModal">
+    <!-- 密码保护 -->
+    <div id="auth-mask">
         <div class="auth-box">
-            <h2 style="margin-bottom: 10px;">🔒 安全访问</h2>
-            <p style="color: var(--text-sec); font-size: 13px;">请输入您的私人密码</p>
-            <input type="password" id="passwordInput" placeholder="输入密码">
-            <button onclick="checkPass()">进入便签</button>
+            <h3>🔒 访问验证</h3>
+            <input type="password" id="pass-in" placeholder="请输入密码">
+            <button onclick="unlock()">进入</button>
         </div>
     </div>
 
-    <!-- 2. 主界面 -->
+    <!-- 顶部功能区 -->
     <div class="header">
         <div class="search-box">
-            <input type="text" id="searchInput" placeholder="搜索内容...">
-            <span class="search-clear" id="searchClear" onclick="clearSearch()">✕</span>
+            <input type="text" id="search" placeholder="搜索...">
+            <div class="search-clear" id="search-x" onclick="clearSearch()">✕</div>
         </div>
-        <div class="icon-btn" onclick="toggleMenu()">☰</div>
+        <div class="btn-group">
+            <div class="icon-btn" onclick="toggleTheme()" title="黑夜模式">🌗</div>
+            <div class="icon-btn" onclick="exportData()" title="导出TXT">📤</div>
+            <div class="icon-btn" onclick="document.getElementById('file-in').click()" title="导入">📥</div>
+            <div class="icon-btn" onclick="forceSync()" title="立即同步">🔄</div>
+        </div>
     </div>
-
-    <!-- 菜单 -->
-    <div class="menu-overlay" id="menuOverlay" onclick="toggleMenu()"></div>
-    <div class="menu-dropdown" id="mainMenu">
-        <div class="menu-item" onclick="renameCurrentTab()">✏️ 重命名当前页</div>
-        <div class="menu-item" onclick="toggleTheme()">🌗 切换黑夜模式</div>
-        <div class="menu-item" onclick="forceSync()">🔄 立即同步</div>
-        <div class="menu-item" onclick="exportData()">📤 导出 TXT</div>
-        <div class="menu-item" onclick="document.getElementById('fileInput').click()">📥 导入备份</div>
-        <div class="menu-item" style="color: var(--danger)" onclick="logout()">🚪 退出登录</div>
-    </div>
-    <input type="file" id="fileInput" hidden onchange="importData(this)">
+    <input type="file" id="file-in" hidden onchange="importData(this)">
 
     <!-- 标签栏 -->
-    <div class="tabs-wrapper">
-        <div class="tabs" id="tabsContainer">
-            <!-- JS 生成 -->
-        </div>
-        <div class="add-tab-btn" onclick="addTab()">+</div>
+    <div class="tabs-wrap">
+        <div class="tabs" id="tabs"></div>
+        <div class="add-btn" onclick="addTab()">+</div>
     </div>
 
     <!-- 内容区 -->
-    <div class="main-area">
-        <textarea id="editor" placeholder="开始记录..." spellcheck="false"></textarea>
-        <!-- 高亮显示层 -->
-        <div id="highlightView" onclick="exitSearchMode()"></div>
+    <div class="editor-container">
+        <textarea id="editor" spellcheck="false"></textarea>
+        <div id="highlight-layer" onclick="exitSearch()"></div>
     </div>
 
     <!-- 状态栏 -->
     <div class="footer">
-        <div class="status-indicator">
-            <span class="dot" id="statusDot"></span>
-            <span id="statusText">本地就绪</span>
-        </div>
-        <div id="lastTime" style="font-family: monospace;">--:--</div>
+        <span><span class="dot" id="dot"></span><span id="status">就绪</span></span>
+        <span id="time"></span>
     </div>
 
 <script>
-    // --- 核心配置与状态 ---
-    const DEFAULT_DATA = { tabs: [{ id: 'init_1', title: '我的便签', content: '', updatedAt: 0 }], active: 'init_1' };
-    let appData = null;
-    let authPassword = localStorage.getItem('notes_auth_token') || ''; 
+    // --- 极速启动核心 ---
+    // 立即执行：主题与本地数据加载，不等待 DOMContentLoaded，防止闪烁
+    const savedTheme = localStorage.getItem('theme') || 'auto';
+    if(savedTheme === 'dark' || (savedTheme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+    }
+
+    const DEFAULT_DATA = { tabs: [{ id: 'init', title: '便签', content: '', updatedAt: 0 }], active: 'init' };
+    let data = null;
+    try {
+        data = JSON.parse(localStorage.getItem('notes_v3') || 'null') || DEFAULT_DATA;
+    } catch(e) { data = DEFAULT_DATA; }
+
+    let authToken = localStorage.getItem('notes_token') || '';
     let syncTimer = null;
-    let isSyncing = false;
-
-    // --- DOM 元素 ---
-    const editor = document.getElementById('editor');
-    const highlightView = document.getElementById('highlightView');
-    const searchInput = document.getElementById('searchInput');
-
-    // --- 初始化流程 ---
-    (function init() {
-        applyTheme(localStorage.getItem('theme') || 'auto'); // 1. 应用主题
-        loadLocal(); // 2. 加载本地数据
-
-        // 3. 验证密码
-        if(authPassword) {
-            document.getElementById('authModal').style.display = 'none';
-            syncCloud(); // 验证通过，后台同步
-        } else {
-            // 聚焦密码框
-            setTimeout(()=> document.getElementById('passwordInput').focus(), 300);
-        }
-
-        // 绑定常用快捷键
-        editor.addEventListener('keydown', (e) => {
-            if(e.key === 'Tab') { e.preventDefault(); document.execCommand('insertText', false, '    '); }
-        });
-        
-        // 双击标签栏重命名 (PC优化)
-        document.getElementById('tabsContainer').addEventListener('dblclick', (e) => {
-            if(e.target.classList.contains('tab')) renameCurrentTab();
-        });
-    })();
-
-    // --- 主题逻辑 ---
-    function applyTheme(mode) {
-        if(mode === 'auto') {
-            const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
-        } else {
-            document.documentElement.setAttribute('data-theme', mode);
-        }
-        localStorage.setItem('theme', mode);
-    }
     
-    function toggleTheme() {
-        const current = document.documentElement.getAttribute('data-theme');
-        applyTheme(current === 'dark' ? 'light' : 'dark');
-        toggleMenu(); // 关闭菜单
-    }
+    // --- DOM 引用 (将在页面解析后填充) ---
+    let dom = {}; 
 
-    // --- 核心：渲染与交互 ---
+    // 页面加载完成后绑定事件
+    window.onload = () => {
+        dom = {
+            tabs: document.getElementById('tabs'),
+            editor: document.getElementById('editor'),
+            hl: document.getElementById('highlight-layer'),
+            search: document.getElementById('search'),
+            dot: document.getElementById('dot'),
+            status: document.getElementById('status'),
+            mask: document.getElementById('auth-mask')
+        };
+
+        // 1. 渲染界面
+        render();
+
+        // 2. 验证与同步
+        if(authToken) {
+            dom.mask.style.display = 'none';
+            sync(); // 后台静默同步
+        } else {
+            document.getElementById('pass-in').focus();
+        }
+
+        // 3. 事件绑定
+        dom.editor.addEventListener('input', onInput);
+        dom.search.addEventListener('input', onSearch);
+        document.getElementById('pass-in').addEventListener('keydown', e => e.key === 'Enter' && unlock());
+    };
+
+    // --- 核心业务逻辑 ---
+
     function render() {
-        const container = document.getElementById('tabsContainer');
-        container.innerHTML = '';
-        
-        // 渲染标签
-        appData.tabs.forEach(tab => {
+        dom.tabs.innerHTML = '';
+        data.tabs.forEach(tab => {
             const div = document.createElement('div');
-            div.className = `tab ${tab.id === appData.active ? 'active' : ''}`;
+            div.className = `tab ${tab.id === data.active ? 'active' : ''}`;
+            div.innerHTML = `${tab.title} <span class="tab-close" onclick="delTab(event, '${tab.id}')">✕</span>`;
             
-            // 标题 + 关闭按钮
-            div.innerHTML = `<span>${tab.title}</span> <span class="tab-close" onclick="removeTab(event, '${tab.id}')">✕</span>`;
+            // 点击切换
+            div.onclick = (e) => { if(!e.target.classList.contains('tab-close')) switchTab(tab.id); };
             
-            div.onclick = (e) => { 
-                if(!e.target.classList.contains('tab-close')) switchTab(tab.id); 
-            };
+            // 电脑端：双击重命名
+            div.addEventListener('dblclick', () => renameTab(tab.id));
             
-            // 确保活动标签在可视区域
-            if(tab.id === appData.active) setTimeout(() => div.scrollIntoView({behavior: "smooth", block: "nearest"}), 10);
-            
-            container.appendChild(div);
+            // 手机端：长按重命名 (contextmenu)
+            div.addEventListener('contextmenu', (e) => {
+                e.preventDefault(); // 阻止默认右键/长按菜单
+                renameTab(tab.id);
+            });
+
+            dom.tabs.appendChild(div);
         });
 
-        // 渲染编辑器内容
-        const activeTab = appData.tabs.find(t => t.id === appData.active);
-        if (activeTab) {
-            if (editor.value !== activeTab.content) editor.value = activeTab.content;
-            // 如果处于搜索模式，也要更新高亮视图
-            if (highlightView.style.display === 'block') updateHighlight();
+        const activeTab = data.tabs.find(t => t.id === data.active);
+        if(activeTab) {
+            // 仅当内容不同时更新，避免光标跳动
+            if(dom.editor.value !== activeTab.content) dom.editor.value = activeTab.content;
+            if(dom.hl.style.display === 'block') updateHighlight(activeTab.content);
         } else {
-            editor.value = '';
+            dom.editor.value = '';
         }
     }
 
-    // --- 编辑器事件 ---
-    editor.addEventListener('input', () => {
-        const activeTab = appData.tabs.find(t => t.id === appData.active);
-        if (activeTab) {
-            activeTab.content = editor.value;
-            activeTab.updatedAt = Date.now();
-            saveLocal();
-            setStatus('wait', '等待同步...');
-            
-            clearTimeout(syncTimer);
-            syncTimer = setTimeout(syncCloud, 2000); // 2秒防抖
+    function onInput() {
+        const t = data.tabs.find(x => x.id === data.active);
+        if(!t) return;
+        t.content = dom.editor.value;
+        t.updatedAt = Date.now();
+        save();
+        setSt('sync', '等待上传...');
+        clearTimeout(syncTimer);
+        syncTimer = setTimeout(sync, 1500); // 1.5秒防抖
+    }
+
+    function renameTab(id) {
+        const t = data.tabs.find(x => x.id === id);
+        if(!t) return;
+        const newName = prompt("重命名便签:", t.title);
+        if(newName && newName.trim()) {
+            t.title = newName.trim();
+            t.updatedAt = Date.now();
+            save();
+            render();
+            sync();
         }
-    });
-
-    // --- 搜索与高亮 (View Switching) ---
-    searchInput.addEventListener('input', (e) => {
-        const keyword = e.target.value;
-        const clearBtn = document.getElementById('searchClear');
-        
-        if (keyword.trim()) {
-            clearBtn.style.display = 'block';
-            enterSearchMode(keyword);
-        } else {
-            clearBtn.style.display = 'none';
-            exitSearchMode();
-        }
-    });
-
-    function enterSearchMode(keyword) {
-        const activeTab = appData.tabs.find(t => t.id === appData.active);
-        if (!activeTab) return;
-
-        editor.style.display = 'none';
-        highlightView.style.display = 'block';
-
-        // XSS 安全转义
-        const safeContent = activeTab.content
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;");
-        
-        // 高亮替换 (忽略大小写)
-        const regex = new RegExp(`(${keyword})`, 'gi');
-        highlightView.innerHTML = safeContent.replace(regex, '<mark>$1</mark>');
     }
 
-    function exitSearchMode() {
-        editor.style.display = 'block';
-        highlightView.style.display = 'none';
-        editor.focus();
-    }
-
-    function clearSearch() {
-        searchInput.value = '';
-        document.getElementById('searchClear').style.display = 'none';
-        exitSearchMode();
-    }
-    
-    // 手动更新高亮视图（当正在搜索且内容变化时）
-    function updateHighlight() {
-        const keyword = searchInput.value;
-        if(keyword) enterSearchMode(keyword);
-    }
-
-    // --- 标签操作 ---
     function switchTab(id) {
-        // 如果正在搜索，先退出搜索再切换
-        if(searchInput.value) {
-            if(!confirm("切换标签将清空当前搜索，继续？")) return;
-            clearSearch();
-        }
-        appData.active = id;
-        saveLocal();
+        if(dom.search.value) clearSearch(); // 切换时退出搜索
+        data.active = id;
+        save();
         render();
     }
 
     function addTab() {
-        const title = prompt("新标签名称:", `笔记 ${appData.tabs.length + 1}`);
-        if(title) {
-            const newId = 't_' + Date.now();
-            appData.tabs.push({ id: newId, title: title, content: '', updatedAt: Date.now() });
-            switchTab(newId);
-            syncCloud();
-        }
+        const id = 't_' + Date.now();
+        data.tabs.push({ id, title: '新便签', content: '', updatedAt: Date.now() });
+        switchTab(id);
+        sync();
     }
 
-    function removeTab(e, id) {
+    function delTab(e, id) {
         e.stopPropagation();
-        if(confirm('删除此便签？此操作不可恢复。')) {
-            appData.tabs = appData.tabs.filter(t => t.id !== id);
-            if(appData.tabs.length === 0) {
-                appData.tabs.push({ id: 't_'+Date.now(), title: '新便签', content: '', updatedAt: Date.now() });
-            }
-            appData.active = appData.tabs[0].id;
-            saveLocal();
+        if(confirm('确定删除?')) {
+            data.tabs = data.tabs.filter(t => t.id !== id);
+            if(!data.tabs.length) data.tabs.push({id:'init', title:'便签', content:'', updatedAt:Date.now()});
+            data.active = data.tabs[0].id;
+            save();
             render();
-            syncCloud();
+            sync();
         }
     }
 
-    function renameCurrentTab() {
-        toggleMenu(false); // 确保菜单关闭
-        const activeTab = appData.tabs.find(t => t.id === appData.active);
-        if(!activeTab) return;
+    // --- 搜索与高亮 ---
+    function onSearch(e) {
+        const key = e.target.value;
+        document.getElementById('search-x').style.display = key ? 'flex' : 'none';
         
-        const newTitle = prompt("重命名标签:", activeTab.title);
-        if(newTitle && newTitle.trim() !== "") {
-            activeTab.title = newTitle;
-            activeTab.updatedAt = Date.now(); // 改名也算更新
-            saveLocal();
-            render();
-            syncCloud();
-        }
+        if(!key) return exitSearch();
+        
+        const t = data.tabs.find(x => x.id === data.active);
+        if(!t) return;
+
+        dom.editor.style.display = 'none';
+        dom.hl.style.display = 'block';
+        updateHighlight(t.content, key);
     }
 
-    // --- 同步逻辑 (合并算法) ---
-    async function syncCloud() {
-        if(isSyncing) return;
-        isSyncing = true;
-        setStatus('sync', '同步中...');
+    function updateHighlight(content, keyword) {
+        keyword = keyword || dom.search.value;
+        if(!keyword) return;
+        const esc = content.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+        const reg = new RegExp(`(${keyword})`, 'gi');
+        dom.hl.innerHTML = esc.replace(reg, '<mark>$1</mark>');
+    }
 
+    function exitSearch() {
+        dom.search.value = '';
+        document.getElementById('search-x').style.display = 'none';
+        dom.editor.style.display = 'block';
+        dom.hl.style.display = 'none';
+        dom.editor.focus();
+    }
+    
+    function clearSearch() { exitSearch(); }
+
+    // --- 同步逻辑 (Merge) ---
+    async function sync() {
+        if(!authToken) return;
+        setSt('sync', '同步中...');
         try {
-            const res = await fetch('/api/notes', { headers: { 'Authorization': authPassword } });
+            // 1. 拉取
+            const res = await fetch('/api/notes', { headers: { 'Authorization': authToken } });
+            if(res.status === 401) { alert('密码错误'); localStorage.removeItem('notes_token'); location.reload(); return; }
+            const cloud = await res.json();
             
-            if (res.status === 401) { logout(); return; } // 密码变了/过期
-            
-            const cloudData = await res.json();
-            let hasChanges = false;
-
-            if (cloudData && cloudData.tabs) {
-                // Merge Logic
-                const localMap = new Map(appData.tabs.map(t => [t.id, t]));
+            // 2. 合并
+            let changed = false;
+            if(cloud && cloud.tabs) {
+                const localMap = new Map(data.tabs.map(t => [t.id, t]));
                 
-                // 1. 下行：云端 -> 本地
-                cloudData.tabs.forEach(cTab => {
-                    const lTab = localMap.get(cTab.id);
-                    if (!lTab) {
-                        appData.tabs.push(cTab); // 手机新建的，电脑拉下来
-                        hasChanges = true;
-                    } else if (cTab.updatedAt > lTab.updatedAt) {
-                        // 云端更新 -> 覆盖本地 (除非当前正在编辑，一般以updatedAt为准)
-                        // 注意：如果正在打字，本地updatedAt会很新，不会被覆盖，这是对的。
-                        lTab.title = cTab.title;
-                        lTab.content = cTab.content;
-                        lTab.updatedAt = cTab.updatedAt;
-                        hasChanges = true;
+                // 云端有，本地没有 -> 加进来
+                cloud.tabs.forEach(ct => {
+                    const lt = localMap.get(ct.id);
+                    if(!lt) { data.tabs.push(ct); changed = true; }
+                    else if(ct.updatedAt > lt.updatedAt) {
+                        // 云端新 -> 覆盖本地 (除非是当前正在编辑的 active tab 且 updatedAt 极近，这里简化为直接覆盖)
+                        // 为了防止正在打字时被覆盖，通常实际项目会做更复杂的Diff，这里采用简单策略：
+                        // 如果内容真的不同，才覆盖
+                        if(lt.content !== ct.content) {
+                            lt.title = ct.title; lt.content = ct.content; lt.updatedAt = ct.updatedAt;
+                            changed = true;
+                        }
                     }
                 });
-
-                // 2. 上行：检查是否需要推送
-                // 简易判断：只要本地JSON和合并后的云端JSON不一致，或者本地有些ID云端没有
-                const mergedJson = JSON.stringify(appData.tabs);
-                const cloudJson = JSON.stringify(cloudData.tabs);
                 
-                if (mergedJson !== cloudJson) {
+                // 推送判断
+                if(JSON.stringify(data.tabs) !== JSON.stringify(cloud.tabs)) {
                     await fetch('/api/notes', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'Authorization': authPassword },
-                        body: mergedJson
+                        headers: { 'Content-Type': 'application/json', 'Authorization': authToken },
+                        body: JSON.stringify(data)
                     });
                 }
             } else {
-                // 云端空，初始化推送
-                await fetch('/api/notes', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': authPassword },
-                    body: JSON.stringify(appData)
-                });
+                // 云端空，初始化
+                await fetch('/api/notes', { method:'POST', headers:{'Authorization':authToken}, body:JSON.stringify(data)});
             }
 
-            if(hasChanges) { saveLocal(); render(); }
-            setStatus('ok', '同步完成');
-            document.getElementById('lastTime').innerText = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+            if(changed) { save(); render(); }
+            setSt('ok', '同步完成');
+            document.getElementById('time').innerText = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
 
-        } catch (e) {
-            console.error(e);
-            setStatus('err', '离线模式');
-        } finally {
-            isSyncing = false;
+        } catch(e) {
+            setSt('err', '离线');
         }
     }
 
-    // --- 辅助功能 ---
-    function checkPass() {
-        const input = document.getElementById('passwordInput').value;
-        if(input) {
-            authPassword = input;
-            localStorage.setItem('notes_auth_token', input);
-            document.getElementById('authModal').style.display = 'none';
-            syncCloud();
+    // --- 工具函数 ---
+    function save() { localStorage.setItem('notes_v3', JSON.stringify(data)); }
+    
+    function setSt(cls, txt) { 
+        if(!dom.dot) return;
+        dom.dot.className = `dot ${cls}`; 
+        dom.status.innerText = txt; 
+    }
+
+    function unlock() {
+        const pwd = document.getElementById('pass-in').value;
+        if(pwd) {
+            authToken = pwd;
+            localStorage.setItem('notes_token', pwd);
+            dom.mask.style.display = 'none';
+            sync();
         }
     }
 
-    function logout() {
-        localStorage.removeItem('notes_auth_token');
-        location.reload();
-    }
-
-    function loadLocal() {
-        try {
-            const saved = localStorage.getItem('notes_data_v2');
-            appData = saved ? JSON.parse(saved) : JSON.parse(JSON.stringify(DEFAULT_DATA));
-        } catch(e) { appData = JSON.parse(JSON.stringify(DEFAULT_DATA)); }
-        render();
-    }
-
-    function saveLocal() {
-        localStorage.setItem('notes_data_v2', JSON.stringify(appData));
-    }
-
-    function setStatus(state, text) {
-        const dot = document.getElementById('statusDot');
-        const txt = document.getElementById('statusText');
-        dot.className = `dot ${state}`;
-        txt.innerText = text;
-    }
-
-    function toggleMenu(show) {
-        const el = document.getElementById('mainMenu');
-        const overlay = document.getElementById('menuOverlay');
-        const isShow = show !== undefined ? show : el.style.display !== 'flex';
-        el.style.display = isShow ? 'flex' : 'none';
-        overlay.style.display = isShow ? 'block' : 'none';
-        // 动态添加显示类
-        if(isShow) el.classList.add('show'); else el.classList.remove('show');
+    function toggleTheme() {
+        const cur = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', cur);
+        localStorage.setItem('theme', cur);
     }
 
     function exportData() {
-        toggleMenu(false);
-        const text = appData.tabs.map(t => `【${t.title}】\n${t.content}\n\n`).join('----------------\n');
-        const blob = new Blob([text], {type: "text/plain"});
+        const txt = data.tabs.map(t => `【${t.title}】\n${t.content}\n\n`).join('---\n');
         const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
-        a.download = `Notes_Backup_${new Date().toISOString().slice(0,10)}.txt`;
+        a.href = URL.createObjectURL(new Blob([txt], {type: "text/plain"}));
+        a.download = `Notes_${new Date().toISOString().slice(0,10)}.txt`;
         a.click();
     }
 
-    function importData(input) {
-        toggleMenu(false);
-        const file = input.files[0];
-        if(!file) return;
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const newId = 'imp_' + Date.now();
-            appData.tabs.push({ id: newId, title: file.name.slice(0,10), content: e.target.result, updatedAt: Date.now() });
-            switchTab(newId);
-            syncCloud();
+    function importData(ipt) {
+        const f = ipt.files[0];
+        if(!f) return;
+        const r = new FileReader();
+        r.onload = e => {
+            const id = 'imp_'+Date.now();
+            data.tabs.push({id, title:f.name.slice(0,8), content:e.target.result, updatedAt:Date.now()});
+            switchTab(id); sync();
         };
-        reader.readAsText(file);
+        r.readAsText(f);
     }
     
-    function forceSync() { toggleMenu(false); syncCloud(); }
-
-    // 密码框回车监听
-    document.getElementById('passwordInput').addEventListener('keydown', (e) => { if(e.key==='Enter') checkPass(); });
+    function forceSync() { sync(); }
 
 </script>
 </body>

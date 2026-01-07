@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>云同步便签 (加密版)</title>
+    <style>
+        body, html { margin: 0; padding: 0; height: 100%; font-family: sans-serif; display: flex; flex-direction: column; background: #fff; overflow: hidden; }
+        
+        /* 顶部栏 */
+        .header { padding: 8px 10px; border-bottom: 1px solid #ddd; display: flex; gap: 8px; align-items: center; background: #f5f5f5; }
+        input.search { flex: 1; padding: 6px; border: 1px solid #ccc; border-radius: 4px; }
+        .btn { padding: 6px 10px; cursor: pointer; background: #fff; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; }
+        .btn:hover { background: #eee; }
+
+        /* 标签区 */
+        .tabs { display: flex; overflow-x: auto; background: #e0e0e0; user-select: none; }
+        .tab { padding: 8px 12px; font-size: 13px; border-right: 1px solid #ccc; cursor: pointer; display: flex; align-items: center; gap: 5px; min-width: 60px; justify-content: center; }
+        .tab.active { background: #fff; border-top: 3px solid #0070f3; font-weight: bold; }
+        .tab-close { font-size: 10px; color: #888; margin-left: 5px; }
+        .tab-close:hover { color: red; }
+        .add-tab { padding: 8px 12px; background: #d0d0d0; cursor: pointer; font-weight: bold; }
+
+        /* 编辑区 */
+        textarea { flex: 1; width: 100%; border: none; padding: 15px; font-size: 16px; line-height: 1.6; resize: none; outline: none; box-sizing: border-box; }
+
+        /* 底部状态 */
+        .footer { padding: 4px 10px; font-size: 11px; color: #666; background: #f9f9f9; border-top: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; background: #ccc; }
+        .status-dot.ok { background: #28a745; }
+        .status-dot.sync { background: #ffc107; }
+        .status-dot.err { background: #dc3545; }
+
+        /* 密码模态框 */
+        #authModal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 999; }
+        .modal-content { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); text-align: center; }
+        .modal-content input { padding: 8px; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 10px; width: 200px; }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+<!-- 密码输入框 -->
+<div id="authModal">
+    <div class="modal-content">
+        <h3>请输入访问密码</h3>
+        <input type="password" id="passwordInput" placeholder="输入密码..." onkeydown="if(event.key==='Enter') checkPass()">
+        <br>
+        <button class="btn" onclick="checkPass()">确定</button>
+    </div>
+</div>
+
+<div class="header">
+    <input type="text" class="search" id="searchInput" placeholder="搜索关键字...">
+    <button class="btn" onclick="exportData()">导出TXT</button>
+    <button class="btn" onclick="importTrigger()">导入</button>
+    <input type="file" id="fileInput" style="display:none" onchange="importData(this)">
+    <button class="btn" onclick="forceSync()">手动同步</button>
+</div>
+
+<div class="tabs" id="tabsContainer"></div>
+<textarea id="editor" placeholder="在此输入内容..."></textarea>
+
+<div class="footer">
+    <span id="statusText"><span class="status-dot" id="dot"></span>准备就绪</span>
+    <span id="lastSyncTime"></span>
+</div>
+
+<script>
+    // --- 配置 ---
+    // 默认数据结构
+    const DEFAULT_DATA = { tabs: [{ id: 'init_1', title: '默认便签', content: '', updatedAt: 0 }], active: 'init_1' };
+    let appData = null;
+    let authPassword = localStorage.getItem('notes_auth_token') || ''; 
+    let syncTimer = null;
+    let isSyncing = false;
+
+    // --- 初始化 ---
+    const editor = document.getElementById('editor');
+    const dot = document.getElementById('dot');
+    
+    // 1. 尝试从本地加载数据 (极速启动)
+    loadLocal();
+
+    // 2. 检查密码状态
+    if (!authPassword) {
+        document.getElementById('authModal').classList.remove('hidden');
+    } else {
+        document.getElementById('authModal').classList.add('hidden');
+        // 后台静默同步
+        syncCloud(); 
+    }
+
+    // --- 核心逻辑：本地数据加载 ---
+    function loadLocal() {
+        const raw = localStorage.getItem('notes_data_v2');
+        if (raw) {
+            try {
+                appData = JSON.parse(raw);
+            } catch(e) { appData = JSON.parse(JSON.stringify(DEFAULT_DATA)); }
+        } else {
+            appData = JSON.parse(JSON.stringify(DEFAULT_DATA));
+        }
+        render();
+    }
+
+    function saveLocal() {
+        localStorage.setItem('notes_data_v2', JSON.stringify(appData));
+    }
+
+    // --- 核心逻辑：密码验证 ---
+    function checkPass() {
+        const input = document.getElementById('passwordInput').value;
+        if (input) {
+            authPassword = input;
+            localStorage.setItem('notes_auth_token', input); // 记住密码
+            document.getElementById('authModal').classList.add('hidden');
+            syncCloud(); // 密码验证后立即触发同步
+        }
+    }
+
+    // --- 核心逻辑：渲染界面 ---
+    function render() {
+        const container = document.getElementById('tabsContainer');
+        container.innerHTML = '';
+        
+        // 渲染标签
+        appData.tabs.forEach(tab => {
+            const div = document.createElement('div');
+            div.className = `tab ${tab.id === appData.active ? 'active' : ''}`;
+            div.innerHTML = `${tab.title} <span class="tab-close" onclick="removeTab(event, '${tab.id}')">✕</span>`;
+            div.onclick = (e) => { if(!e.target.classList.contains('tab-close')) switchTab(tab.id); };
+            container.appendChild(div);
+        });
+
+        // 加号
+        const addBtn = document.createElement('div');
+        addBtn.className = 'add-tab';
+        addBtn.innerText = '+';
+        addBtn.onclick = addTab;
+        container.appendChild(addBtn);
+
+        // 内容
+        const activeTab = appData.tabs.find(t => t.id === appData.active);
+        if (activeTab) {
+            // 只有当编辑器内容和数据不一致时才赋值，防止输入时光标跳动
+            if (editor.value !== activeTab.content) {
+                editor.value = activeTab.content;
+            }
+        } else {
+            editor.value = '';
+        }
+    }
+
+    // --- 交互事件 ---
+    editor.addEventListener('input', () => {
+        const activeTab = appData.tabs.find(t => t.id === appData.active);
+        if (activeTab) {
+            activeTab.content = editor.value;
+            activeTab.updatedAt = Date.now(); // 关键：更新时间戳
+            saveLocal();
+            setStatus('waiting', '等待上传...');
+            
+            clearTimeout(syncTimer);
+            syncTimer = setTimeout(syncCloud, 2000); // 防抖：2秒后上传
+        }
+    });
+
+    document.getElementById('searchInput').addEventListener('input', (e) => {
+        const key = e.target.value.toLowerCase();
+        if(!key) return;
+        const found = appData.tabs.find(t => t.content.toLowerCase().includes(key));
+        if(found) setStatus('ok', `发现于: ${found.title}`);
+    });
+
+    function switchTab(id) {
+        appData.active = id;
+        saveLocal();
+        render();
+    }
+
+    function addTab() {
+        const title = prompt("新标签名称:", `笔记${appData.tabs.length + 1}`);
+        if(title) {
+            const newId = 'tab_' + Date.now();
+            appData.tabs.push({ id: newId, title: title, content: '', updatedAt: Date.now() });
+            switchTab(newId);
+            syncCloud(); // 结构改变立即同步
+        }
+    }
+
+    function removeTab(e, id) {
+        e.stopPropagation();
+        if(confirm('确定删除此便签？')) {
+            appData.tabs = appData.tabs.filter(t => t.id !== id);
+            if(appData.tabs.length === 0) {
+                // 如果删光了，补一个
+                const newId = 'tab_' + Date.now();
+                appData.tabs.push({ id: newId, title: '新便签', content: '', updatedAt: Date.now() });
+            }
+            appData.active = appData.tabs[0].id;
+            saveLocal();
+            render();
+            syncCloud();
+        }
+    }
+
+    // --- 核心逻辑：智能同步与聚合 (Merge) ---
+    async function syncCloud() {
+        if(isSyncing) return;
+        isSyncing = true;
+        setStatus('sync', '正在同步...');
+
+        try {
+            // 1. 先从云端拉取数据
+            const res = await fetch('/api/notes', {
+                headers: { 'Authorization': authPassword }
+            });
+            
+            if (res.status === 401) {
+                alert('密码错误，请刷新重试');
+                localStorage.removeItem('notes_auth_token');
+                location.reload();
+                return;
+            }
+
+            const cloudData = await res.json();
+            let needPush = false;
+
+            // 2. 聚合逻辑 (Aggregation Logic)
+            if (cloudData && cloudData.tabs) {
+                // 创建一个 Map 方便对比
+                const localMap = new Map(appData.tabs.map(t => [t.id, t]));
+                const cloudMap = new Map(cloudData.tabs.map(t => [t.id, t]));
+
+                // A. 遍历云端数据 -> 更新本地或添加新标签
+                cloudData.tabs.forEach(cTab => {
+                    const lTab = localMap.get(cTab.id);
+                    if (!lTab) {
+                        // 本地没有 -> 说明是其他设备新加的 -> 添加到本地
+                        appData.tabs.push(cTab);
+                        console.log('同步: 发现新标签', cTab.title);
+                    } else {
+                        // 本地有 -> 对比时间戳
+                        if (cTab.updatedAt > lTab.updatedAt) {
+                            // 云端比本地新 -> 覆盖本地
+                            // 注意：这里需要很小心，如果我们正在输入，updatedAt会很新，通常不会被覆盖
+                            Object.assign(lTab, cTab);
+                            console.log('同步: 更新标签内容', cTab.title);
+                        }
+                    }
+                });
+
+                // B. 遍历本地数据 -> 检查是否比云端新
+                // (这一步其实在下面 push 时会自然覆盖，但为了逻辑严谨)
+                // 如果本地有某个Tab比云端新，或者云端根本没有这个Tab，
+                // 那么合并后的结果 appData 已经包含了这些“本地最新”的数据。
+                
+                // C. 检查是否需要反向推送 (Push)
+                // 只要本地数据(也就是现在的 appData)的任何一部分比 cloudData 新，就需要推送
+                // 简单判定：JSON字符串不一致就需要同步 (包含 添加/删除/修改)
+                // 为了避免来回震荡，我们比较 active 之外的 tabs 内容
+                const mergedJson = JSON.stringify(appData.tabs);
+                const cloudJson = JSON.stringify(cloudData.tabs);
+                
+                if (mergedJson !== cloudJson) {
+                    needPush = true;
+                }
+            } else {
+                // 云端是空的，需要初始化推送
+                needPush = true;
+            }
+
+            // 保存合并后的结果到本地
+            saveLocal();
+            render();
+
+            // 3. 如果需要，将合并后的最新状态推送到云端
+            if (needPush) {
+                await fetch('/api/notes', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': authPassword 
+                    },
+                    body: JSON.stringify(appData)
+                });
+                console.log('同步: 已推送最新状态到云端');
+            }
+
+            setStatus('ok', '同步完成');
+            document.getElementById('lastSyncTime').innerText = new Date().toLocaleTimeString();
+
+        } catch (e) {
+            console.error(e);
+            setStatus('err', '网络错误，本地可用');
+        } finally {
+            isSyncing = false;
+        }
+    }
+
+    function setStatus(type, msg) {
+        dot.className = `status-dot ${type}`;
+        document.getElementById('statusText').innerText = msg;
+    }
+
+    // --- 导入导出 ---
+    function exportData() {
+        const text = appData.tabs.map(t => `【${t.title}】\n${t.content}\n\n`).join('----------------\n');
+        const blob = new Blob([text], {type: "text/plain"});
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `便签备份_${new Date().toISOString().slice(0,10)}.txt`;
+        a.click();
+    }
+
+    function importTrigger() { document.getElementById('fileInput').click(); }
+
+    function importData(input) {
+        const file = input.files[0];
+        if(!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const content = e.target.result;
+            // 简单作为新标签导入
+            const newId = 'import_' + Date.now();
+            appData.tabs.push({ id: newId, title: file.name, content: content, updatedAt: Date.now() });
+            switchTab(newId);
+            syncCloud();
+        };
+        reader.readAsText(file);
+    }
+    
+    function forceSync() { syncCloud(); }
+
+</script>
+</body>
+</html>

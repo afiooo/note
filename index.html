@@ -5,192 +5,232 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>极速云便签</title>
     <style>
-        /* --- 极简 CSS 变量 --- */
+        /* --- CSS 变量 --- */
         :root {
-            --bg: #ffffff; --text: #222; --border: #e0e0e0; --bg-sec: #f7f7f7;
-            --accent: #0070f3; --highlight: #ffe066; --danger: #ff4d4f;
+            --bg: #ffffff; --text: #333; --text-sec: #666; --border: #e0e0e0; --bg-sec: #f9f9f9;
+            --accent: #0070f3; --highlight: #ffeb3b; --danger: #ff4d4f;
         }
         [data-theme="dark"] {
-            --bg: #121212; --text: #e0e0e0; --border: #333; --bg-sec: #1e1e1e;
+            --bg: #121212; --text: #e0e0e0; --text-sec: #aaa; --border: #333; --bg-sec: #1e1e1e;
             --accent: #4dabf7; --highlight: #665c14; --danger: #ff6b6b;
         }
 
-        /* --- 基础布局 (追求渲染速度) --- */
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body, html { margin: 0; padding: 0; height: 100%; font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); display: flex; flex-direction: column; overflow: hidden; transition: background 0.2s, color 0.2s; }
+        /* --- 全局设置 --- */
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
+        body, html { margin: 0; padding: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); display: flex; flex-direction: column; overflow: hidden; }
 
-        /* --- 顶部工具栏 (回归直观) --- */
-        .header { height: 48px; padding: 0 10px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--border); background: var(--bg-sec); flex-shrink: 0; }
+        /* --- 顶部栏 (文字按钮版) --- */
+        .header { height: 48px; padding: 0 12px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border); background: var(--bg-sec); flex-shrink: 0; }
         
         /* 搜索框 */
-        .search-box { flex: 1; position: relative; }
-        .search-box input { width: 100%; height: 32px; padding: 0 28px 0 8px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); color: var(--text); outline: none; font-size: 14px; }
-        .search-clear { position: absolute; right: 0; top: 0; height: 32px; width: 30px; display: flex; align-items: center; justify-content: center; color: #999; cursor: pointer; display: none; }
+        .search-wrap { flex: 1; position: relative; }
+        .search-wrap input { width: 100%; height: 32px; padding: 0 26px 0 10px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); color: var(--text); font-size: 14px; transition: border 0.2s; }
+        .search-wrap input:focus { border-color: var(--accent); }
+        .search-clear { position: absolute; right: 0; top: 0; height: 32px; width: 32px; display: flex; align-items: center; justify-content: center; color: #999; cursor: pointer; display: none; }
 
-        /* 功能按钮组 (图标化) */
-        .btn-group { display: flex; gap: 4px; }
-        .icon-btn { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); color: var(--text); cursor: pointer; font-size: 16px; user-select: none; }
-        .icon-btn:active { background: var(--border); }
-        
-        /* --- 标签栏 --- */
-        .tabs-wrap { height: 40px; background: var(--bg-sec); border-bottom: 1px solid var(--border); display: flex; overflow: hidden; flex-shrink: 0; }
+        /* 按钮组 */
+        .btn-group { display: flex; align-items: center; gap: 4px; }
+        .text-btn { background: transparent; border: none; color: var(--text-sec); font-size: 14px; padding: 6px 8px; cursor: pointer; border-radius: 4px; font-weight: 500; white-space: nowrap; }
+        .text-btn:hover { background: rgba(0,0,0,0.05); color: var(--text); }
+        .icon-btn { font-size: 18px; padding: 4px 8px; cursor: pointer; border-radius: 4px; display: flex; align-items: center; }
+        .icon-btn:hover { background: rgba(0,0,0,0.05); }
+
+        /* --- 标签栏 (原地修改) --- */
+        .tabs-wrap { height: 42px; background: var(--bg-sec); border-bottom: 1px solid var(--border); display: flex; overflow: hidden; flex-shrink: 0; }
         .tabs { flex: 1; display: flex; overflow-x: auto; scrollbar-width: none; }
         .tabs::-webkit-scrollbar { display: none; }
         
-        .tab { padding: 0 15px; display: flex; align-items: center; gap: 8px; font-size: 13px; color: #666; border-right: 1px solid var(--border); white-space: nowrap; cursor: pointer; user-select: none; position: relative; }
+        .tab { padding: 0 16px; display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-sec); border-right: 1px solid var(--border); white-space: nowrap; cursor: pointer; user-select: none; max-width: 150px; }
         .tab.active { background: var(--bg); color: var(--accent); font-weight: 600; border-top: 2px solid var(--accent); }
-        .tab-close { font-size: 14px; opacity: 0.5; width: 20px; text-align: center; }
-        .tab-close:hover { opacity: 1; color: var(--danger); font-weight: bold; }
         
-        .add-btn { width: 40px; display: flex; align-items: center; justify-content: center; font-size: 20px; cursor: pointer; border-left: 1px solid var(--border); background: var(--bg-sec); color: var(--text); }
+        /* 标签标题 & 输入框 */
+        .tab-title { overflow: hidden; text-overflow: ellipsis; }
+        .tab-input { width: 80px; padding: 2px 4px; font-size: 13px; border: 1px solid var(--accent); border-radius: 2px; background: var(--bg); color: var(--text); }
+
+        .tab-close { font-size: 14px; opacity: 0.4; margin-left: 2px; padding: 2px; border-radius: 50%; }
+        .tab-close:hover { opacity: 1; color: var(--danger); background: rgba(0,0,0,0.05); }
+        
+        .add-btn { width: 44px; display: flex; align-items: center; justify-content: center; font-size: 20px; cursor: pointer; border-left: 1px solid var(--border); background: var(--bg-sec); color: var(--text-sec); }
+        .add-btn:hover { background: #eee; }
 
         /* --- 编辑区 --- */
-        .editor-container { flex: 1; position: relative; }
-        #editor { width: 100%; height: 100%; border: none; padding: 15px; font-size: 16px; line-height: 1.6; resize: none; outline: none; background: var(--bg); color: var(--text); font-family: inherit; display: block; }
-        
-        /* 高亮阅读层 (搜索时显示) */
-        #highlight-layer { position: absolute; inset: 0; padding: 15px; font-size: 16px; line-height: 1.6; background: var(--bg); color: var(--text); overflow-y: auto; white-space: pre-wrap; z-index: 5; display: none; }
+        .editor-box { flex: 1; position: relative; }
+        #editor { width: 100%; height: 100%; border: none; padding: 16px; font-size: 16px; line-height: 1.6; resize: none; background: var(--bg); color: var(--text); display: block; }
+        #highlight-layer { position: absolute; inset: 0; padding: 16px; font-size: 16px; line-height: 1.6; background: var(--bg); color: var(--text); overflow-y: auto; white-space: pre-wrap; z-index: 5; display: none; }
         mark { background: var(--highlight); color: #000; border-radius: 2px; }
 
         /* --- 底部 --- */
-        .footer { height: 26px; padding: 0 10px; font-size: 11px; color: #888; border-top: 1px solid var(--border); background: var(--bg-sec); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
-        .dot { width: 6px; height: 6px; border-radius: 50%; background: #ccc; display: inline-block; margin-right: 4px; }
+        .footer { height: 28px; padding: 0 12px; font-size: 11px; color: #999; border-top: 1px solid var(--border); background: var(--bg-sec); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+        .dot { width: 6px; height: 6px; border-radius: 50%; background: #ccc; display: inline-block; margin-right: 5px; }
         .dot.ok { background: #28a745; } .dot.sync { background: #ffc107; } .dot.err { background: #ff4d4f; }
 
-        /* --- 密码层 --- */
-        #auth-mask { position: fixed; inset: 0; background: var(--bg); z-index: 999; display: flex; justify-content: center; align-items: center; }
-        .auth-box { width: 260px; text-align: center; }
-        .auth-box input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid var(--border); background: var(--bg-sec); color: var(--text); }
-        .auth-box button { width: 100%; padding: 10px; background: var(--accent); color: #fff; border: none; cursor: pointer; }
+        /* --- 密码蒙层 --- */
+        #auth-layer { position: fixed; inset: 0; background: var(--bg); z-index: 999; display: flex; justify-content: center; align-items: center; }
+        .auth-card { width: 280px; padding: 20px; text-align: center; }
+        .auth-card input { width: 100%; padding: 10px; margin: 15px 0; border: 1px solid var(--border); border-radius: 4px; background: var(--bg-sec); color: var(--text); }
+        .auth-card button { width: 100%; padding: 10px; background: var(--accent); color: #fff; border: none; border-radius: 4px; cursor: pointer; }
     </style>
 </head>
 <body>
 
-    <!-- 密码保护 -->
-    <div id="auth-mask">
-        <div class="auth-box">
-            <h3>🔒 访问验证</h3>
-            <input type="password" id="pass-in" placeholder="请输入密码">
-            <button onclick="unlock()">进入</button>
+    <!-- 密码验证 -->
+    <div id="auth-layer">
+        <div class="auth-card">
+            <h3 style="margin-top:0">🔒 安全访问</h3>
+            <input type="password" id="pass-input" placeholder="请输入密码">
+            <button onclick="unlock()">进入便签</button>
         </div>
     </div>
 
-    <!-- 顶部功能区 -->
+    <!-- 顶部 -->
     <div class="header">
-        <div class="search-box">
-            <input type="text" id="search" placeholder="搜索...">
-            <div class="search-clear" id="search-x" onclick="clearSearch()">✕</div>
+        <div class="search-wrap">
+            <input type="text" id="search" placeholder="搜索关键字...">
+            <div class="search-clear" id="search-x" onclick="exitSearch()">✕</div>
         </div>
         <div class="btn-group">
             <div class="icon-btn" onclick="toggleTheme()" title="黑夜模式">🌗</div>
-            <div class="icon-btn" onclick="exportData()" title="导出TXT">📤</div>
-            <div class="icon-btn" onclick="document.getElementById('file-in').click()" title="导入">📥</div>
-            <div class="icon-btn" onclick="forceSync()" title="立即同步">🔄</div>
+            <button class="text-btn" onclick="exportTxt()">导出</button>
+            <button class="text-btn" onclick="document.getElementById('imp-file').click()">导入</button>
+            <button class="text-btn" onclick="sync()">同步</button>
         </div>
     </div>
-    <input type="file" id="file-in" hidden onchange="importData(this)">
+    <input type="file" id="imp-file" hidden onchange="importTxt(this)">
 
-    <!-- 标签栏 -->
+    <!-- 标签 -->
     <div class="tabs-wrap">
         <div class="tabs" id="tabs"></div>
         <div class="add-btn" onclick="addTab()">+</div>
     </div>
 
-    <!-- 内容区 -->
-    <div class="editor-container">
+    <!-- 编辑 -->
+    <div class="editor-box">
         <textarea id="editor" spellcheck="false"></textarea>
         <div id="highlight-layer" onclick="exitSearch()"></div>
     </div>
 
-    <!-- 状态栏 -->
+    <!-- 底部 -->
     <div class="footer">
         <span><span class="dot" id="dot"></span><span id="status">就绪</span></span>
-        <span id="time"></span>
+        <span id="time" style="font-family: monospace"></span>
     </div>
 
 <script>
-    // --- 极速启动核心 ---
-    // 立即执行：主题与本地数据加载，不等待 DOMContentLoaded，防止闪烁
+    // --- 极速启动 ---
     const savedTheme = localStorage.getItem('theme') || 'auto';
     if(savedTheme === 'dark' || (savedTheme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
         document.documentElement.setAttribute('data-theme', 'dark');
     }
 
-    const DEFAULT_DATA = { tabs: [{ id: 'init', title: '便签', content: '', updatedAt: 0 }], active: 'init' };
-    let data = null;
-    try {
-        data = JSON.parse(localStorage.getItem('notes_v3') || 'null') || DEFAULT_DATA;
-    } catch(e) { data = DEFAULT_DATA; }
-
-    let authToken = localStorage.getItem('notes_token') || '';
+    const DEFAULT = { tabs: [{ id: 'init', title: '我的便签', content: '', updatedAt: 0 }], active: 'init' };
+    let data = JSON.parse(localStorage.getItem('notes_v4') || 'null') || DEFAULT;
+    let token = localStorage.getItem('notes_token') || '';
     let syncTimer = null;
-    
-    // --- DOM 引用 (将在页面解析后填充) ---
-    let dom = {}; 
+    let isEditingTitle = false; // 防止编辑标题时触发切换
 
-    // 页面加载完成后绑定事件
+    // --- DOM 绑定 ---
+    const dom = {};
     window.onload = () => {
-        dom = {
-            tabs: document.getElementById('tabs'),
-            editor: document.getElementById('editor'),
-            hl: document.getElementById('highlight-layer'),
-            search: document.getElementById('search'),
-            dot: document.getElementById('dot'),
-            status: document.getElementById('status'),
-            mask: document.getElementById('auth-mask')
-        };
+        dom.tabs = document.getElementById('tabs');
+        dom.editor = document.getElementById('editor');
+        dom.hl = document.getElementById('highlight-layer');
+        dom.search = document.getElementById('search');
+        dom.dot = document.getElementById('dot');
+        dom.status = document.getElementById('status');
+        dom.mask = document.getElementById('auth-layer');
 
-        // 1. 渲染界面
         render();
 
-        // 2. 验证与同步
-        if(authToken) {
+        if(token) {
             dom.mask.style.display = 'none';
-            sync(); // 后台静默同步
+            sync();
         } else {
-            document.getElementById('pass-in').focus();
+            document.getElementById('pass-input').focus();
         }
 
-        // 3. 事件绑定
         dom.editor.addEventListener('input', onInput);
         dom.search.addEventListener('input', onSearch);
-        document.getElementById('pass-in').addEventListener('keydown', e => e.key === 'Enter' && unlock());
+        document.getElementById('pass-input').addEventListener('keydown', e => e.key==='Enter' && unlock());
     };
 
-    // --- 核心业务逻辑 ---
-
+    // --- 核心渲染与交互 ---
     function render() {
         dom.tabs.innerHTML = '';
         data.tabs.forEach(tab => {
             const div = document.createElement('div');
             div.className = `tab ${tab.id === data.active ? 'active' : ''}`;
-            div.innerHTML = `${tab.title} <span class="tab-close" onclick="delTab(event, '${tab.id}')">✕</span>`;
+            
+            // 结构：标题Span + 关闭按钮
+            div.innerHTML = `<span class="tab-title">${tab.title}</span> <span class="tab-close" onclick="delTab(event, '${tab.id}')">✕</span>`;
             
             // 点击切换
-            div.onclick = (e) => { if(!e.target.classList.contains('tab-close')) switchTab(tab.id); };
-            
-            // 电脑端：双击重命名
-            div.addEventListener('dblclick', () => renameTab(tab.id));
-            
-            // 手机端：长按重命名 (contextmenu)
-            div.addEventListener('contextmenu', (e) => {
-                e.preventDefault(); // 阻止默认右键/长按菜单
-                renameTab(tab.id);
-            });
+            div.onclick = (e) => { 
+                if(isEditingTitle || e.target.classList.contains('tab-close') || e.target.tagName === 'INPUT') return;
+                switchTab(tab.id); 
+            };
+
+            // 原地重命名逻辑 (双击 + 长按)
+            const enableEdit = (e) => {
+                e.preventDefault();
+                startRename(tab.id, div);
+            };
+            div.addEventListener('dblclick', enableEdit); // 电脑
+            div.addEventListener('contextmenu', enableEdit); // 手机长按
 
             dom.tabs.appendChild(div);
         });
 
+        // 渲染内容
         const activeTab = data.tabs.find(t => t.id === data.active);
         if(activeTab) {
-            // 仅当内容不同时更新，避免光标跳动
             if(dom.editor.value !== activeTab.content) dom.editor.value = activeTab.content;
-            if(dom.hl.style.display === 'block') updateHighlight(activeTab.content);
+            if(dom.hl.style.display === 'block') highlight(activeTab.content);
         } else {
             dom.editor.value = '';
         }
     }
 
+    // --- 原地重命名实现 ---
+    function startRename(id, tabDiv) {
+        isEditingTitle = true;
+        const span = tabDiv.querySelector('.tab-title');
+        const oldTitle = span.innerText;
+        
+        // 替换为输入框
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = oldTitle;
+        input.className = 'tab-input';
+        
+        // 替换显示
+        span.replaceWith(input);
+        input.focus();
+        input.select(); // 全选文字方便修改
+
+        // 保存函数
+        const finish = () => {
+            const newVal = input.value.trim();
+            const tab = data.tabs.find(t => t.id === id);
+            if(tab && newVal) {
+                tab.title = newVal;
+                tab.updatedAt = Date.now();
+                save();
+            }
+            isEditingTitle = false;
+            render(); // 恢复 Span 显示
+            if(tab && newVal && newVal !== oldTitle) sync();
+        };
+
+        // 事件监听
+        input.addEventListener('blur', finish); // 失去焦点保存
+        input.addEventListener('keydown', (e) => {
+            if(e.key === 'Enter') { input.blur(); } // 回车保存
+            e.stopPropagation(); // 防止冒泡
+        });
+        input.addEventListener('click', e => e.stopPropagation());
+    }
+
+    // --- 业务逻辑 ---
     function onInput() {
         const t = data.tabs.find(x => x.id === data.active);
         if(!t) return;
@@ -199,24 +239,11 @@
         save();
         setSt('sync', '等待上传...');
         clearTimeout(syncTimer);
-        syncTimer = setTimeout(sync, 1500); // 1.5秒防抖
-    }
-
-    function renameTab(id) {
-        const t = data.tabs.find(x => x.id === id);
-        if(!t) return;
-        const newName = prompt("重命名便签:", t.title);
-        if(newName && newName.trim()) {
-            t.title = newName.trim();
-            t.updatedAt = Date.now();
-            save();
-            render();
-            sync();
-        }
+        syncTimer = setTimeout(sync, 1500);
     }
 
     function switchTab(id) {
-        if(dom.search.value) clearSearch(); // 切换时退出搜索
+        if(dom.search.value) exitSearch();
         data.active = id;
         save();
         render();
@@ -233,34 +260,29 @@
         e.stopPropagation();
         if(confirm('确定删除?')) {
             data.tabs = data.tabs.filter(t => t.id !== id);
-            if(!data.tabs.length) data.tabs.push({id:'init', title:'便签', content:'', updatedAt:Date.now()});
+            if(!data.tabs.length) data.tabs.push({id:'init',title:'便签',content:'',updatedAt:Date.now()});
             data.active = data.tabs[0].id;
-            save();
-            render();
-            sync();
+            save(); render(); sync();
         }
     }
 
-    // --- 搜索与高亮 ---
+    // --- 搜索 ---
     function onSearch(e) {
         const key = e.target.value;
         document.getElementById('search-x').style.display = key ? 'flex' : 'none';
-        
         if(!key) return exitSearch();
         
         const t = data.tabs.find(x => x.id === data.active);
-        if(!t) return;
-
         dom.editor.style.display = 'none';
         dom.hl.style.display = 'block';
-        updateHighlight(t.content, key);
+        highlight(t ? t.content : '');
     }
 
-    function updateHighlight(content, keyword) {
-        keyword = keyword || dom.search.value;
-        if(!keyword) return;
+    function highlight(content) {
+        const key = dom.search.value;
+        if(!key) return;
         const esc = content.replace(/&/g, "&amp;").replace(/</g, "&lt;");
-        const reg = new RegExp(`(${keyword})`, 'gi');
+        const reg = new RegExp(`(${key})`, 'gi');
         dom.hl.innerHTML = esc.replace(reg, '<mark>$1</mark>');
     }
 
@@ -271,32 +293,23 @@
         dom.hl.style.display = 'none';
         dom.editor.focus();
     }
-    
-    function clearSearch() { exitSearch(); }
 
-    // --- 同步逻辑 (Merge) ---
+    // --- 同步 ---
     async function sync() {
-        if(!authToken) return;
+        if(!token) return;
         setSt('sync', '同步中...');
         try {
-            // 1. 拉取
-            const res = await fetch('/api/notes', { headers: { 'Authorization': authToken } });
+            const res = await fetch('/api/notes', { headers: { 'Authorization': token } });
             if(res.status === 401) { alert('密码错误'); localStorage.removeItem('notes_token'); location.reload(); return; }
             const cloud = await res.json();
             
-            // 2. 合并
             let changed = false;
             if(cloud && cloud.tabs) {
-                const localMap = new Map(data.tabs.map(t => [t.id, t]));
-                
-                // 云端有，本地没有 -> 加进来
+                const map = new Map(data.tabs.map(t => [t.id, t]));
                 cloud.tabs.forEach(ct => {
-                    const lt = localMap.get(ct.id);
+                    const lt = map.get(ct.id);
                     if(!lt) { data.tabs.push(ct); changed = true; }
                     else if(ct.updatedAt > lt.updatedAt) {
-                        // 云端新 -> 覆盖本地 (除非是当前正在编辑的 active tab 且 updatedAt 极近，这里简化为直接覆盖)
-                        // 为了防止正在打字时被覆盖，通常实际项目会做更复杂的Diff，这里采用简单策略：
-                        // 如果内容真的不同，才覆盖
                         if(lt.content !== ct.content) {
                             lt.title = ct.title; lt.content = ct.content; lt.updatedAt = ct.updatedAt;
                             changed = true;
@@ -304,75 +317,54 @@
                     }
                 });
                 
-                // 推送判断
                 if(JSON.stringify(data.tabs) !== JSON.stringify(cloud.tabs)) {
                     await fetch('/api/notes', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'Authorization': authToken },
+                        headers: {'Content-Type':'application/json', 'Authorization':token},
                         body: JSON.stringify(data)
                     });
                 }
             } else {
-                // 云端空，初始化
-                await fetch('/api/notes', { method:'POST', headers:{'Authorization':authToken}, body:JSON.stringify(data)});
+                await fetch('/api/notes', { method:'POST', headers:{'Authorization':token}, body:JSON.stringify(data)});
             }
-
             if(changed) { save(); render(); }
-            setSt('ok', '同步完成');
+            setSt('ok', '已同步');
             document.getElementById('time').innerText = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
-
-        } catch(e) {
-            setSt('err', '离线');
-        }
+        } catch(e) { setSt('err', '离线'); }
     }
 
-    // --- 工具函数 ---
-    function save() { localStorage.setItem('notes_v3', JSON.stringify(data)); }
+    // --- 工具 ---
+    function save() { localStorage.setItem('notes_v4', JSON.stringify(data)); }
+    function setSt(c, t) { if(dom.dot) { dom.dot.className = `dot ${c}`; dom.status.innerText = t; } }
     
-    function setSt(cls, txt) { 
-        if(!dom.dot) return;
-        dom.dot.className = `dot ${cls}`; 
-        dom.status.innerText = txt; 
-    }
-
     function unlock() {
-        const pwd = document.getElementById('pass-in').value;
-        if(pwd) {
-            authToken = pwd;
-            localStorage.setItem('notes_token', pwd);
-            dom.mask.style.display = 'none';
-            sync();
-        }
+        const v = document.getElementById('pass-input').value;
+        if(v) { token = v; localStorage.setItem('notes_token', v); dom.mask.style.display='none'; sync(); }
     }
-
+    
     function toggleTheme() {
-        const cur = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-        document.documentElement.setAttribute('data-theme', cur);
-        localStorage.setItem('theme', cur);
+        const c = document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark';
+        document.documentElement.setAttribute('data-theme', c);
+        localStorage.setItem('theme', c);
     }
-
-    function exportData() {
+    
+    function exportTxt() {
         const txt = data.tabs.map(t => `【${t.title}】\n${t.content}\n\n`).join('---\n');
         const a = document.createElement("a");
-        a.href = URL.createObjectURL(new Blob([txt], {type: "text/plain"}));
+        a.href = URL.createObjectURL(new Blob([txt],{type:"text/plain"}));
         a.download = `Notes_${new Date().toISOString().slice(0,10)}.txt`;
         a.click();
     }
-
-    function importData(ipt) {
-        const f = ipt.files[0];
-        if(!f) return;
+    
+    function importTxt(ipt) {
+        const f = ipt.files[0]; if(!f) return;
         const r = new FileReader();
         r.onload = e => {
             const id = 'imp_'+Date.now();
-            data.tabs.push({id, title:f.name.slice(0,8), content:e.target.result, updatedAt:Date.now()});
+            data.tabs.push({id, title:f.name.slice(0,6), content:e.target.result, updatedAt:Date.now()});
             switchTab(id); sync();
-        };
-        r.readAsText(f);
+        }; r.readAsText(f);
     }
-    
-    function forceSync() { sync(); }
-
 </script>
 </body>
 </html>

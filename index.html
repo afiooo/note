@@ -52,8 +52,12 @@
 <script>
     const savedTheme=localStorage.getItem('theme')||'auto';
     if(savedTheme==='dark'||(savedTheme==='auto'&&window.matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.setAttribute('data-theme','dark');
-    const DEFAULT={tabs:[{id:'init',title:'我的便签',content:'',updatedAt:0}],active:'init'};
-    let data=JSON.parse(localStorage.getItem('notes_v4')||'null')||DEFAULT;
+    
+    // 增加 deleted 字段记录已删除ID
+    const DEFAULT={tabs:[{id:'init',title:'我的便签',content:'',updatedAt:0}],deleted:[],active:'init'};
+    let data=JSON.parse(localStorage.getItem('notes_v5')||'null')||DEFAULT;
+    if(!data.deleted) data.deleted = []; // 兼容旧数据
+
     let token=localStorage.getItem('notes_token')||'', syncTimer=null, isEditingTitle=false;
     const dom={};
     window.onload=()=>{
@@ -65,6 +69,7 @@
         if(token){ dom.mask.style.display='none'; sync(); } else document.getElementById('pass-input').focus();
         dom.editor.addEventListener('input',onInput); dom.search.addEventListener('input',onSearch);
         document.getElementById('pass-input').addEventListener('keydown',e=>e.key==='Enter'&&unlock());
+        setInterval(()=>{ if(token) sync(); }, 1000*60*60); // 1小时保活
     };
     function render(){
         dom.tabs.innerHTML='';
@@ -98,12 +103,95 @@
     }
     function switchTab(id){ if(dom.search.value)exitSearch(); data.active=id; save(); render(); }
     function addTab(){ const id='t_'+Date.now(); data.tabs.push({id,title:'新便签',content:'',updatedAt:Date.now()}); switchTab(id); sync(); }
+    
+    // --- 核心修改：删除逻辑 ---
     function delTab(e,id){
         e.stopPropagation(); if(confirm('确定删除?')){
-            data.tabs=data.tabs.filter(t=>t.id!==id); if(!data.tabs.length)data.tabs.push({id:'init',title:'便签',content:'',updatedAt:Date.now()});
+            // 1. 记入黑名单
+            if(!data.deleted) data.deleted = [];
+            data.deleted.push(id);
+            // 2. 从列表移除
+            data.tabs=data.tabs.filter(t=>t.id!==id); 
+            if(!data.tabs.length)data.tabs.push({id:'init',title:'便签',content:'',updatedAt:Date.now()});
             data.active=data.tabs[0].id; save(); render(); sync();
         }
     }
+
+    // --- 核心修改：智能同步逻辑 ---
+    async function sync(){
+        if(!token)return; setSt('sync','同步中...');
+        try{
+            const res=await fetch('/api/notes',{headers:{'Authorization':token}});
+            if(res.status===401){ alert('密码错误'); localStorage.removeItem('notes_token'); location.reload(); return; }
+            const cloud=await res.json(); 
+            
+            let changed=false;
+            if(cloud && cloud.tabs){
+                // A. 合并“已删除名单”
+                const localDel = data.deleted || [];
+                const cloudDel = cloud.deleted || [];
+                // 去重合并
+                const allDeleted = [...new Set([...localDel, ...cloudDel])];
+                
+                // B. 先清理：如果本地有的Tab在黑名单里，删掉 (这是为了响应其他端的删除)
+                const beforeCount = data.tabs.length;
+                data.tabs = data.tabs.filter(t => !allDeleted.includes(t.id));
+                if(data.tabs.length !== beforeCount) changed = true;
+
+                // C. 再合并：处理云端Tab
+                const map=new Map(data.tabs.map(t=>[t.id,t]));
+                cloud.tabs.forEach(ct=>{
+                    // 如果云端Tab在黑名单里，坚决不要 (这是为了响应本地的删除)
+                    if(allDeleted.includes(ct.id)) return;
+
+                    const lt=map.get(ct.id);
+                    if(!lt){ 
+                        // 本地没有，且不在黑名单 -> 它是新便签，加进来
+                        data.tabs.push(ct); changed=true; 
+                    }
+                    else if(ct.updatedAt > lt.updatedAt){ 
+                        // 云端比本地新 -> 更新内容
+                        if(lt.content!==ct.content || lt.title!==ct.title){ 
+                            lt.title=ct.title; lt.content=ct.content; lt.updatedAt=ct.updatedAt; 
+                            changed=true; 
+                        } 
+                    }
+                });
+
+                // 更新本地黑名单为最新全量
+                if(data.deleted.length !== allDeleted.length){
+                    data.deleted = allDeleted;
+                    changed = true;
+                }
+
+                // D. 兜底：如果删光了，补一个
+                if(data.tabs.length === 0){
+                     data.tabs.push({id:'t_'+Date.now(),title:'便签',content:'',updatedAt:Date.now()});
+                     data.active = data.tabs[0].id;
+                     changed = true;
+                } else if (!data.tabs.find(t=>t.id===data.active)){
+                    data.active = data.tabs[0].id;
+                    changed = true;
+                }
+
+                // E. 推送判断
+                // 只要合并后的结果和云端不一致（比如云端还有旧Tab没删，或者云端缺了新Tab），就推上去
+                const mergedJson = JSON.stringify({tabs: data.tabs, deleted: data.deleted});
+                const cloudJson = JSON.stringify({tabs: cloud.tabs, deleted: cloud.deleted});
+                
+                if(mergedJson !== cloudJson){
+                    await fetch('/api/notes',{method:'POST',headers:{'Content-Type':'application/json','Authorization':token},body:mergedJson});
+                }
+            } else {
+                // 云端是空的，直接初始化
+                await fetch('/api/notes',{method:'POST',headers:{'Authorization':token},body:JSON.stringify(data)});
+            }
+            
+            if(changed){ save(); render(); } 
+            setSt('ok','已同步'); document.getElementById('time').innerText=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+        } catch(e){ setSt('err','离线'); console.error(e);}
+    }
+
     function onSearch(e){
         const key=e.target.value; document.getElementById('search-x').style.display=key?'flex':'none'; if(!key)return exitSearch();
         const t=data.tabs.find(x=>x.id===data.active); dom.editor.style.display='none'; dom.hl.style.display='block'; highlight(t?t.content:'');
@@ -114,27 +202,7 @@
         dom.hl.innerHTML=esc.replace(reg,'<mark>$1</mark>');
     }
     function exitSearch(){ dom.search.value=''; document.getElementById('search-x').style.display='none'; dom.editor.style.display='block'; dom.hl.style.display='none'; dom.editor.focus(); }
-    async function sync(){
-        if(!token)return; setSt('sync','同步中...');
-        try{
-            const res=await fetch('/api/notes',{headers:{'Authorization':token}});
-            if(res.status===401){ alert('密码错误'); localStorage.removeItem('notes_token'); location.reload(); return; }
-            const cloud=await res.json(); let changed=false;
-            if(cloud&&cloud.tabs){
-                const map=new Map(data.tabs.map(t=>[t.id,t]));
-                cloud.tabs.forEach(ct=>{
-                    const lt=map.get(ct.id);
-                    if(!lt){ data.tabs.push(ct); changed=true; }
-                    else if(ct.updatedAt>lt.updatedAt){ if(lt.content!==ct.content){ lt.title=ct.title; lt.content=ct.content; lt.updatedAt=ct.updatedAt; changed=true; } }
-                });
-                if(JSON.stringify(data.tabs)!==JSON.stringify(cloud.tabs)){
-                    await fetch('/api/notes',{method:'POST',headers:{'Content-Type':'application/json','Authorization':token},body:JSON.stringify(data)});
-                }
-            } else await fetch('/api/notes',{method:'POST',headers:{'Authorization':token},body:JSON.stringify(data)});
-            if(changed){ save(); render(); } setSt('ok','已同步'); document.getElementById('time').innerText=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
-        } catch(e){ setSt('err','离线'); }
-    }
-    function save(){ localStorage.setItem('notes_v4',JSON.stringify(data)); }
+    function save(){ localStorage.setItem('notes_v5',JSON.stringify(data)); }
     function setSt(c,t){ if(dom.dot){ dom.dot.className=`dot ${c}`; dom.status.innerText=t; } }
     function unlock(){ const v=document.getElementById('pass-input').value; if(v){ token=v; localStorage.setItem('notes_token',v); dom.mask.style.display='none'; sync(); } }
     function toggleTheme(){ const c=document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark'; document.documentElement.setAttribute('data-theme',c); localStorage.setItem('theme',c); }

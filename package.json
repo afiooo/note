@@ -1,0 +1,7 @@
+{
+  "name": "fast-notes-secure",
+  "version": "2.0.0",
+  "dependencies": {
+    "@upstash/redis": "^1.28.0"
+  }
+}

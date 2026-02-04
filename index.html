@@ -38,23 +38,22 @@
         .auth-card input { width: 100%; padding: 10px; margin: 15px 0; border: 1px solid var(--border); border-radius: 4px; background: var(--bg-sec); color: var(--text); }
         .auth-card button { width: 100%; padding: 10px; background: var(--accent); color: #fff; border: none; border-radius: 4px; cursor: pointer; }
         
-        /* 新增：代码块样式 */
-        .code-card { position: relative; background: var(--bg-sec); border: 1px solid var(--border); border-radius: 4px; margin: 8px 0; padding: 32px 12px 12px 12px; }
+        /* 修改：代码块样式更紧凑 */
+        .code-card { position: relative; background: var(--bg-sec); border: 1px solid var(--border); border-radius: 4px; margin: 4px 0; padding: 6px 28px 6px 8px; }
         .code-card pre { margin: 0; padding: 0; overflow-x: auto; white-space: pre-wrap; word-break: break-all; font-family: monospace; color: var(--text); }
-        .copy-btn { position: absolute; top: 6px; right: 6px; font-size: 12px; padding: 3px 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 3px; color: var(--accent); cursor: pointer; }
-        .copy-btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+        /* 修改：复制按钮改为简洁图标 */
+        .copy-btn { position: absolute; top: 2px; right: 2px; font-size: 16px; padding: 3px; background: transparent; border: none; color: var(--text-sec); cursor: pointer; opacity: 0.5; transition: opacity 0.2s; }
+        .copy-btn:hover { opacity: 1; color: var(--accent); background: transparent; }
     </style>
 </head>
 <body>
     <div id="auth-layer"><div class="auth-card"><h3 style="margin-top:0">🔒 安全访问</h3><input type="password" id="pass-input" placeholder="请输入密码"><button onclick="unlock()">进入便签</button></div></div>
     <div class="header">
         <div class="search-wrap"><input type="text" id="search" placeholder="搜索关键字..."><div class="search-clear" id="search-x" onclick="exitSearch()">✕</div></div>
-        <!-- 修改：增加了预览按钮 👁️ -->
         <div class="btn-group"><div class="icon-btn" onclick="togglePreview()" title="预览/编辑">👁️</div><div class="icon-btn" onclick="toggleTheme()" title="黑夜模式">🌗</div><button class="text-btn" onclick="exportTxt()">导出</button><button class="text-btn" onclick="document.getElementById('imp-file').click()">导入</button><button class="text-btn" onclick="sync()">同步</button></div>
     </div>
     <input type="file" id="imp-file" hidden onchange="importTxt(this)">
     <div class="tabs-wrap"><div class="tabs" id="tabs"></div><div class="add-btn" onclick="addTab()">+</div></div>
-    <!-- 修改：移除 highlight-layer 的内联 onclick，改为 JS 绑定 -->
     <div class="editor-box"><textarea id="editor" spellcheck="false"></textarea><div id="highlight-layer"></div></div>
     <div class="footer"><span><span class="dot" id="dot"></span><span id="status">就绪</span></span><span id="time" style="font-family: monospace"></span></div>
 <script>
@@ -80,11 +79,10 @@
         dom.editor.addEventListener('input',onInput); dom.search.addEventListener('input',onSearch);
         document.getElementById('pass-input').addEventListener('keydown',e=>e.key==='Enter'&&unlock());
         
-        // 修改：统一处理点击逻辑，区分搜索和预览
         dom.hl.addEventListener('click', (e) => {
-            if (e.target.tagName === 'BUTTON') return; // 点击复制代码按钮不关闭
+            if (e.target.tagName === 'BUTTON') return;
             if (dom.search.value) exitSearch();
-            else togglePreview(); // 预览模式下点击空白切回编辑
+            else togglePreview();
         });
 
         setInterval(()=>{ if(token) sync(); }, 1000*60*60);
@@ -102,7 +100,6 @@
             dom.tabs.appendChild(div);
         });
         const activeTab=data.tabs.find(t=>t.id===data.active);
-        // 如果正在预览，切换Tab时自动切回编辑模式
         if(dom.hl.style.display==='block' && !dom.search.value) togglePreview();
         if(activeTab){ if(dom.editor.value!==activeTab.content)dom.editor.value=activeTab.content; } else dom.editor.value='';
     }
@@ -177,9 +174,8 @@
         const t=data.tabs.find(x=>x.id===data.active); dom.editor.style.display='none'; dom.hl.style.display='block'; highlight(t?t.content:'');
     }
     
-    // 新增：预览/编辑切换
     function togglePreview() {
-        if(dom.search.value) return; // 搜索时不切换
+        if(dom.search.value) return;
         const isEdit = dom.editor.style.display !== 'none';
         if(isEdit) {
             dom.editor.style.display = 'none';
@@ -192,30 +188,30 @@
         }
     }
 
-    // 新增：Markdown渲染逻辑（支持代码块）
     function renderMarkdown() {
         const txt = dom.editor.value;
         const parts = txt.split('```');
         let html = '';
         parts.forEach((part, i) => {
-            if(i % 2 === 0) { // 普通文本
+            if(i % 2 === 0) {
                 html += part.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/\n/g, "<br>");
-            } else { // 代码块
+            } else {
                 let code = part.replace(/&/g, "&amp;").replace(/</g, "&lt;");
-                if(code.startsWith('\n')) code = code.substring(1); // 去掉开头的换行
-                html += `<div class="code-card"><button class="copy-btn" onclick="copyCode(this)">复制</button><pre>${code}</pre></div>`;
+                if(code.startsWith('\n')) code = code.substring(1);
+                // 修改：使用 📋 图标
+                html += `<div class="code-card"><button class="copy-btn" onclick="copyCode(this)" title="复制">📋</button><pre>${code}</pre></div>`;
             }
         });
         dom.hl.innerHTML = html || '<span style="color:#999;font-size:13px;">(空)</span>';
     }
 
-    // 新增：复制代码
+    // 修改：图标复制反馈
     function copyCode(btn) {
         const pre = btn.nextElementSibling;
         const text = pre.innerText;
         navigator.clipboard.writeText(text).then(() => {
             const original = btn.innerText;
-            btn.innerText = '已复制';
+            btn.innerText = '✅';
             setTimeout(() => btn.innerText = original, 2000);
         });
     }

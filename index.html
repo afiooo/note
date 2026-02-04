@@ -38,10 +38,9 @@
         .auth-card input { width: 100%; padding: 10px; margin: 15px 0; border: 1px solid var(--border); border-radius: 4px; background: var(--bg-sec); color: var(--text); }
         .auth-card button { width: 100%; padding: 10px; background: var(--accent); color: #fff; border: none; border-radius: 4px; cursor: pointer; }
         
-        /* 修改：代码块样式更紧凑 */
-        .code-card { position: relative; background: var(--bg-sec); border: 1px solid var(--border); border-radius: 4px; margin: 4px 0; padding: 6px 28px 6px 8px; }
+        /* 修改：代码块样式极致紧凑，margin改小 */
+        .code-card { position: relative; background: var(--bg-sec); border: 1px solid var(--border); border-radius: 4px; margin: 2px 0; padding: 6px 28px 6px 8px; }
         .code-card pre { margin: 0; padding: 0; overflow-x: auto; white-space: pre-wrap; word-break: break-all; font-family: monospace; color: var(--text); }
-        /* 修改：复制按钮改为简洁图标 */
         .copy-btn { position: absolute; top: 2px; right: 2px; font-size: 16px; padding: 3px; background: transparent; border: none; color: var(--text-sec); cursor: pointer; opacity: 0.5; transition: opacity 0.2s; }
         .copy-btn:hover { opacity: 1; color: var(--accent); background: transparent; }
     </style>
@@ -188,24 +187,26 @@
         }
     }
 
+    // 修改：去除紧邻代码块的前后换行符，解决间距过大问题
     function renderMarkdown() {
         const txt = dom.editor.value;
         const parts = txt.split('```');
         let html = '';
         parts.forEach((part, i) => {
             if(i % 2 === 0) {
-                html += part.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/\n/g, "<br>");
+                let p = part;
+                if(i > 0) p = p.replace(/^\n/, ''); // 去除代码块后的回车
+                if(i < parts.length - 1) p = p.replace(/\n$/, ''); // 去除代码块前的回车
+                html += p.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/\n/g, "<br>");
             } else {
                 let code = part.replace(/&/g, "&amp;").replace(/</g, "&lt;");
                 if(code.startsWith('\n')) code = code.substring(1);
-                // 修改：使用 📋 图标
                 html += `<div class="code-card"><button class="copy-btn" onclick="copyCode(this)" title="复制">📋</button><pre>${code}</pre></div>`;
             }
         });
         dom.hl.innerHTML = html || '<span style="color:#999;font-size:13px;">(空)</span>';
     }
 
-    // 修改：图标复制反馈
     function copyCode(btn) {
         const pre = btn.nextElementSibling;
         const text = pre.innerText;

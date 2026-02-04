@@ -9,13 +9,27 @@
         [data-theme="dark"] { --bg: #121212; --text: #e0e0e0; --text-sec: #aaa; --border: #333; --bg-sec: #1e1e1e; --accent: #4dabf7; --highlight: #665c14; --danger: #ff6b6b; }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
         body, html { margin: 0; padding: 0; height: 100%; font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); display: flex; flex-direction: column; overflow: hidden; }
+        
+        /* 头部样式优化 */
         .header { height: 48px; padding: 0 12px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border); background: var(--bg-sec); flex-shrink: 0; }
         .search-wrap { flex: 1; position: relative; }
         .search-wrap input { width: 100%; height: 32px; padding: 0 26px 0 10px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); color: var(--text); font-size: 14px; }
         .search-clear { position: absolute; right: 0; top: 0; height: 32px; width: 32px; display: flex; align-items: center; justify-content: center; color: #999; cursor: pointer; display: none; }
+        
         .btn-group { display: flex; align-items: center; gap: 4px; }
         .text-btn { background: transparent; border: none; color: var(--text-sec); font-size: 14px; padding: 6px 8px; cursor: pointer; border-radius: 4px; font-weight: 500; white-space: nowrap; }
         .icon-btn { font-size: 18px; padding: 4px 8px; cursor: pointer; border-radius: 4px; display: flex; align-items: center; }
+
+        /* 手机端适配优化 */
+        @media (max-width: 480px) {
+            .header { padding: 0 8px; gap: 6px; }
+            .btn-group { gap: 2px; }
+            .text-btn { font-size: 12px; padding: 6px 4px; }
+            .icon-btn { padding: 4px 4px; font-size: 16px; }
+            /* 手机上搜索框稍微缩短一点以留出空间给按钮 */
+            .search-wrap { flex: 0.8; } 
+        }
+
         .tabs-wrap { height: 42px; background: var(--bg-sec); border-bottom: 1px solid var(--border); display: flex; overflow: hidden; flex-shrink: 0; }
         .tabs { flex: 1; display: flex; overflow-x: auto; scrollbar-width: none; }
         .tabs::-webkit-scrollbar { display: none; }
@@ -26,19 +40,22 @@
         .tab-close { font-size: 14px; opacity: 0.4; margin-left: 2px; padding: 2px; border-radius: 50%; }
         .tab-close:hover { opacity: 1; color: var(--danger); }
         .add-btn { width: 44px; display: flex; align-items: center; justify-content: center; font-size: 20px; cursor: pointer; border-left: 1px solid var(--border); background: var(--bg-sec); color: var(--text-sec); }
+        
         .editor-box { flex: 1; position: relative; }
         #editor { width: 100%; height: 100%; border: none; padding: 16px; font-size: 16px; line-height: 1.6; resize: none; background: var(--bg); color: var(--text); display: block; }
         #highlight-layer { position: absolute; inset: 0; padding: 16px; font-size: 16px; line-height: 1.6; background: var(--bg); color: var(--text); overflow-y: auto; white-space: pre-wrap; z-index: 5; display: none; }
         mark { background: var(--highlight); color: #000; border-radius: 2px; }
+        
         .footer { height: 28px; padding: 0 12px; font-size: 11px; color: #999; border-top: 1px solid var(--border); background: var(--bg-sec); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
         .dot { width: 6px; height: 6px; border-radius: 50%; background: #ccc; display: inline-block; margin-right: 5px; }
         .dot.ok { background: #28a745; } .dot.sync { background: #ffc107; } .dot.err { background: #ff4d4f; }
+        
         #auth-layer { position: fixed; inset: 0; background: var(--bg); z-index: 999; display: flex; justify-content: center; align-items: center; }
         .auth-card { width: 280px; padding: 20px; text-align: center; }
         .auth-card input { width: 100%; padding: 10px; margin: 15px 0; border: 1px solid var(--border); border-radius: 4px; background: var(--bg-sec); color: var(--text); }
         .auth-card button { width: 100%; padding: 10px; background: var(--accent); color: #fff; border: none; border-radius: 4px; cursor: pointer; }
         
-        /* 修改：代码块样式极致紧凑，margin改小 */
+        /* 代码块极致紧凑样式 */
         .code-card { position: relative; background: var(--bg-sec); border: 1px solid var(--border); border-radius: 4px; margin: 2px 0; padding: 6px 28px 6px 8px; }
         .code-card pre { margin: 0; padding: 0; overflow-x: auto; white-space: pre-wrap; word-break: break-all; font-family: monospace; color: var(--text); }
         .copy-btn { position: absolute; top: 2px; right: 2px; font-size: 16px; padding: 3px; background: transparent; border: none; color: var(--text-sec); cursor: pointer; opacity: 0.5; transition: opacity 0.2s; }
@@ -78,14 +95,20 @@
         dom.editor.addEventListener('input',onInput); dom.search.addEventListener('input',onSearch);
         document.getElementById('pass-input').addEventListener('keydown',e=>e.key==='Enter'&&unlock());
         
-        dom.hl.addEventListener('click', (e) => {
+        // 核心修改：双击预览层进入编辑模式，单击仅处理搜索退出
+        dom.hl.addEventListener('dblclick', (e) => {
             if (e.target.tagName === 'BUTTON') return;
+            enterEditMode();
+        });
+        
+        dom.hl.addEventListener('click', (e) => {
             if (dom.search.value) exitSearch();
-            else togglePreview();
+            // 注意：这里不再有 togglePreview 的逻辑，必须双击才能编辑
         });
 
         setInterval(()=>{ if(token) sync(); }, 1000*60*60);
-        togglePreview();
+        // 初始化强制预览
+        enterPreviewMode(); 
     };
 
     function render(){
@@ -99,8 +122,16 @@
             dom.tabs.appendChild(div);
         });
         const activeTab=data.tabs.find(t=>t.id===data.active);
-        if(dom.hl.style.display==='block' && !dom.search.value) togglePreview();
-        if(activeTab){ if(dom.editor.value!==activeTab.content)dom.editor.value=activeTab.content; } else dom.editor.value='';
+        
+        // 数据填充
+        if(activeTab){ 
+            if(dom.editor.value!==activeTab.content) dom.editor.value=activeTab.content; 
+        } else dom.editor.value='';
+        
+        // 核心修改：切换标签时，强制渲染Markdown并进入预览模式
+        if (!dom.search.value) {
+            enterPreviewMode();
+        }
     }
 
     function startRename(id,tabDiv){
@@ -173,21 +204,29 @@
         const t=data.tabs.find(x=>x.id===data.active); dom.editor.style.display='none'; dom.hl.style.display='block'; highlight(t?t.content:'');
     }
     
+    // 手动切换按钮
     function togglePreview() {
         if(dom.search.value) return;
         const isEdit = dom.editor.style.display !== 'none';
-        if(isEdit) {
-            dom.editor.style.display = 'none';
-            dom.hl.style.display = 'block';
-            renderMarkdown();
-        } else {
-            dom.editor.style.display = 'block';
-            dom.hl.style.display = 'none';
-            dom.editor.focus();
-        }
+        if(isEdit) enterPreviewMode();
+        else enterEditMode();
+    }
+    
+    // 强制进入预览模式
+    function enterPreviewMode() {
+        dom.editor.style.display = 'none';
+        dom.hl.style.display = 'block';
+        renderMarkdown();
     }
 
-    // 修改：去除紧邻代码块的前后换行符，解决间距过大问题
+    // 强制进入编辑模式
+    function enterEditMode() {
+        dom.editor.style.display = 'block';
+        dom.hl.style.display = 'none';
+        dom.editor.focus();
+    }
+
+    // 去除多余空行的紧凑Markdown渲染
     function renderMarkdown() {
         const txt = dom.editor.value;
         const parts = txt.split('```');
@@ -195,8 +234,8 @@
         parts.forEach((part, i) => {
             if(i % 2 === 0) {
                 let p = part;
-                if(i > 0) p = p.replace(/^\n/, ''); // 去除代码块后的回车
-                if(i < parts.length - 1) p = p.replace(/\n$/, ''); // 去除代码块前的回车
+                if(i > 0) p = p.replace(/^\n/, ''); 
+                if(i < parts.length - 1) p = p.replace(/\n$/, ''); 
                 html += p.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/\n/g, "<br>");
             } else {
                 let code = part.replace(/&/g, "&amp;").replace(/</g, "&lt;");

@@ -107,8 +107,7 @@
         });
 
         setInterval(()=>{ if(token) sync(); }, 1000*60*60);
-        // 初始化强制预览
-        enterPreviewMode(); 
+        // 初始化强制预览逻辑由 render 处理
     };
 
     function render(){
@@ -128,9 +127,13 @@
             if(dom.editor.value!==activeTab.content) dom.editor.value=activeTab.content; 
         } else dom.editor.value='';
         
-        // 核心修改：切换标签时，强制渲染Markdown并进入预览模式
+        // 核心修改：切换标签时，如果内容不为空则预览，为空则编辑（例如新建时）
         if (!dom.search.value) {
-            enterPreviewMode();
+            if (activeTab && activeTab.content) {
+                enterPreviewMode();
+            } else {
+                enterEditMode();
+            }
         }
     }
 

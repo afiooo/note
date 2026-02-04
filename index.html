@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>极速云便签</title>
+    <style>
+        :root { --bg: #ffffff; --text: #333; --text-sec: #666; --border: #e0e0e0; --bg-sec: #f9f9f9; --accent: #0070f3; --highlight: #ffeb3b; --danger: #ff4d4f; }
+        [data-theme="dark"] { --bg: #121212; --text: #e0e0e0; --text-sec: #aaa; --border: #333; --bg-sec: #1e1e1e; --accent: #4dabf7; --highlight: #665c14; --danger: #ff6b6b; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
+        body, html { margin: 0; padding: 0; height: 100%; font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); display: flex; flex-direction: column; overflow: hidden; }
+        .header { height: 48px; padding: 0 12px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border); background: var(--bg-sec); flex-shrink: 0; }
+        .search-wrap { flex: 1; position: relative; }
+        .search-wrap input { width: 100%; height: 32px; padding: 0 26px 0 10px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); color: var(--text); font-size: 14px; }
+        .search-clear { position: absolute; right: 0; top: 0; height: 32px; width: 32px; display: flex; align-items: center; justify-content: center; color: #999; cursor: pointer; display: none; }
+        .btn-group { display: flex; align-items: center; gap: 4px; }
+        .text-btn { background: transparent; border: none; color: var(--text-sec); font-size: 14px; padding: 6px 8px; cursor: pointer; border-radius: 4px; font-weight: 500; white-space: nowrap; }
+        .icon-btn { font-size: 18px; padding: 4px 8px; cursor: pointer; border-radius: 4px; display: flex; align-items: center; }
+        .tabs-wrap { height: 42px; background: var(--bg-sec); border-bottom: 1px solid var(--border); display: flex; overflow: hidden; flex-shrink: 0; }
+        .tabs { flex: 1; display: flex; overflow-x: auto; scrollbar-width: none; }
+        .tabs::-webkit-scrollbar { display: none; }
+        .tab { padding: 0 16px; display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-sec); border-right: 1px solid var(--border); white-space: nowrap; cursor: pointer; user-select: none; max-width: 150px; }
+        .tab.active { background: var(--bg); color: var(--accent); font-weight: 600; border-top: 2px solid var(--accent); }
+        .tab-title { overflow: hidden; text-overflow: ellipsis; }
+        .tab-input { width: 80px; padding: 2px 4px; font-size: 13px; border: 1px solid var(--accent); border-radius: 2px; background: var(--bg); color: var(--text); }
+        .tab-close { font-size: 14px; opacity: 0.4; margin-left: 2px; padding: 2px; border-radius: 50%; }
+        .tab-close:hover { opacity: 1; color: var(--danger); }
+        .add-btn { width: 44px; display: flex; align-items: center; justify-content: center; font-size: 20px; cursor: pointer; border-left: 1px solid var(--border); background: var(--bg-sec); color: var(--text-sec); }
+        .editor-box { flex: 1; position: relative; }
+        #editor { width: 100%; height: 100%; border: none; padding: 16px; font-size: 16px; line-height: 1.6; resize: none; background: var(--bg); color: var(--text); display: block; }
+        #highlight-layer { position: absolute; inset: 0; padding: 16px; font-size: 16px; line-height: 1.6; background: var(--bg); color: var(--text); overflow-y: auto; white-space: pre-wrap; z-index: 5; display: none; }
+        mark { background: var(--highlight); color: #000; border-radius: 2px; }
+        .footer { height: 28px; padding: 0 12px; font-size: 11px; color: #999; border-top: 1px solid var(--border); background: var(--bg-sec); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+        .dot { width: 6px; height: 6px; border-radius: 50%; background: #ccc; display: inline-block; margin-right: 5px; }
+        .dot.ok { background: #28a745; } .dot.sync { background: #ffc107; } .dot.err { background: #ff4d4f; }
+        #auth-layer { position: fixed; inset: 0; background: var(--bg); z-index: 999; display: flex; justify-content: center; align-items: center; }
+        .auth-card { width: 280px; padding: 20px; text-align: center; }
+        .auth-card input { width: 100%; padding: 10px; margin: 15px 0; border: 1px solid var(--border); border-radius: 4px; background: var(--bg-sec); color: var(--text); }
+        .auth-card button { width: 100%; padding: 10px; background: var(--accent); color: #fff; border: none; border-radius: 4px; cursor: pointer; }
+        
+        /* 新增：代码块样式 */
+        .code-card { position: relative; background: var(--bg-sec); border: 1px solid var(--border); border-radius: 4px; margin: 8px 0; padding: 32px 12px 12px 12px; }
+        .code-card pre { margin: 0; padding: 0; overflow-x: auto; white-space: pre-wrap; word-break: break-all; font-family: monospace; color: var(--text); }
+        .copy-btn { position: absolute; top: 6px; right: 6px; font-size: 12px; padding: 3px 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 3px; color: var(--accent); cursor: pointer; }
+        .copy-btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+    </style>
+</head>
+<body>
+    <div id="auth-layer"><div class="auth-card"><h3 style="margin-top:0">🔒 安全访问</h3><input type="password" id="pass-input" placeholder="请输入密码"><button onclick="unlock()">进入便签</button></div></div>
+    <div class="header">
+        <div class="search-wrap"><input type="text" id="search" placeholder="搜索关键字..."><div class="search-clear" id="search-x" onclick="exitSearch()">✕</div></div>
+        <!-- 修改：增加了预览按钮 👁️ -->
+        <div class="btn-group"><div class="icon-btn" onclick="togglePreview()" title="预览/编辑">👁️</div><div class="icon-btn" onclick="toggleTheme()" title="黑夜模式">🌗</div><button class="text-btn" onclick="exportTxt()">导出</button><button class="text-btn" onclick="document.getElementById('imp-file').click()">导入</button><button class="text-btn" onclick="sync()">同步</button></div>
+    </div>
+    <input type="file" id="imp-file" hidden onchange="importTxt(this)">
+    <div class="tabs-wrap"><div class="tabs" id="tabs"></div><div class="add-btn" onclick="addTab()">+</div></div>
+    <!-- 修改：移除 highlight-layer 的内联 onclick，改为 JS 绑定 -->
+    <div class="editor-box"><textarea id="editor" spellcheck="false"></textarea><div id="highlight-layer"></div></div>
+    <div class="footer"><span><span class="dot" id="dot"></span><span id="status">就绪</span></span><span id="time" style="font-family: monospace"></span></div>
+<script>
+    const savedTheme=localStorage.getItem('theme')||'auto';
+    if(savedTheme==='dark'||(savedTheme==='auto'&&window.matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.setAttribute('data-theme','dark');
+    
+    const DEFAULT={tabs:[{id:'init',title:'我的便签',content:'',updatedAt:0}],deleted:[],active:'init'};
+    let data=JSON.parse(localStorage.getItem('notes_v5')||'null')||DEFAULT;
+    if(!data.deleted) data.deleted = [];
+
+    let token=localStorage.getItem('notes_token')||'', syncTimer=null, isEditingTitle=false;
+    const dom={};
+    
+    window.onload=()=>{
+        dom.tabs=document.getElementById('tabs'); dom.editor=document.getElementById('editor');
+        dom.hl=document.getElementById('highlight-layer'); dom.search=document.getElementById('search');
+        dom.dot=document.getElementById('dot'); dom.status=document.getElementById('status');
+        dom.mask=document.getElementById('auth-layer');
+        
+        render();
+        if(token){ dom.mask.style.display='none'; sync(); } else document.getElementById('pass-input').focus();
+        
+        dom.editor.addEventListener('input',onInput); dom.search.addEventListener('input',onSearch);
+        document.getElementById('pass-input').addEventListener('keydown',e=>e.key==='Enter'&&unlock());
+        
+        // 修改：统一处理点击逻辑，区分搜索和预览
+        dom.hl.addEventListener('click', (e) => {
+            if (e.target.tagName === 'BUTTON') return; // 点击复制代码按钮不关闭
+            if (dom.search.value) exitSearch();
+            else togglePreview(); // 预览模式下点击空白切回编辑
+        });
+
+        setInterval(()=>{ if(token) sync(); }, 1000*60*60);
+        togglePreview();
+    };
+
+    function render(){
+        dom.tabs.innerHTML='';
+        data.tabs.forEach(tab=>{
+            const div=document.createElement('div'); div.className=`tab ${tab.id===data.active?'active':''}`;
+            div.innerHTML=`<span class="tab-title">${tab.title}</span> <span class="tab-close" onclick="delTab(event, '${tab.id}')">✕</span>`;
+            div.onclick=(e)=>{if(isEditingTitle||e.target.classList.contains('tab-close')||e.target.tagName==='INPUT')return;switchTab(tab.id);};
+            const enableEdit=(e)=>{e.preventDefault();startRename(tab.id,div);};
+            div.addEventListener('dblclick',enableEdit); div.addEventListener('contextmenu',enableEdit);
+            dom.tabs.appendChild(div);
+        });
+        const activeTab=data.tabs.find(t=>t.id===data.active);
+        // 如果正在预览，切换Tab时自动切回编辑模式
+        if(dom.hl.style.display==='block' && !dom.search.value) togglePreview();
+        if(activeTab){ if(dom.editor.value!==activeTab.content)dom.editor.value=activeTab.content; } else dom.editor.value='';
+    }
+
+    function startRename(id,tabDiv){
+        isEditingTitle=true; const span=tabDiv.querySelector('.tab-title'); const oldTitle=span.innerText;
+        const input=document.createElement('input'); input.type='text'; input.value=oldTitle; input.className='tab-input';
+        span.replaceWith(input); input.focus(); input.select();
+        const finish=()=>{
+            const newVal=input.value.trim(); const tab=data.tabs.find(t=>t.id===id);
+            if(tab&&newVal){ tab.title=newVal; tab.updatedAt=Date.now(); save(); }
+            isEditingTitle=false; render(); if(tab&&newVal&&newVal!==oldTitle)sync();
+        };
+        input.addEventListener('blur',finish); input.addEventListener('keydown',e=>{if(e.key==='Enter')input.blur();e.stopPropagation();});
+        input.addEventListener('click',e=>e.stopPropagation());
+    }
+
+    function onInput(){
+        const t=data.tabs.find(x=>x.id===data.active); if(!t)return;
+        t.content=dom.editor.value; t.updatedAt=Date.now(); save();
+        setSt('sync','等待上传...'); clearTimeout(syncTimer); syncTimer=setTimeout(sync,1500);
+    }
+    function switchTab(id){ if(dom.search.value)exitSearch(); data.active=id; save(); render(); }
+    function addTab(){ const id='t_'+Date.now(); data.tabs.push({id,title:'新便签',content:'',updatedAt:Date.now()}); switchTab(id); sync(); }
+    
+    function delTab(e,id){
+        e.stopPropagation(); if(confirm('确定删除?')){
+            if(!data.deleted) data.deleted = []; data.deleted.push(id);
+            data.tabs=data.tabs.filter(t=>t.id!==id); 
+            if(!data.tabs.length)data.tabs.push({id:'init',title:'便签',content:'',updatedAt:Date.now()});
+            data.active=data.tabs[0].id; save(); render(); sync();
+        }
+    }
+
+    async function sync(){
+        if(!token)return; setSt('sync','同步中...');
+        try{
+            const res=await fetch('/api/notes',{headers:{'Authorization':token}});
+            if(res.status===401){ alert('密码错误'); localStorage.removeItem('notes_token'); location.reload(); return; }
+            const cloud=await res.json(); 
+            let changed=false;
+            if(cloud && cloud.tabs){
+                const localDel = data.deleted || []; const cloudDel = cloud.deleted || [];
+                const allDeleted = [...new Set([...localDel, ...cloudDel])];
+                const beforeCount = data.tabs.length;
+                data.tabs = data.tabs.filter(t => !allDeleted.includes(t.id));
+                if(data.tabs.length !== beforeCount) changed = true;
+                const map=new Map(data.tabs.map(t=>[t.id,t]));
+                cloud.tabs.forEach(ct=>{
+                    if(allDeleted.includes(ct.id)) return;
+                    const lt=map.get(ct.id);
+                    if(!lt){ data.tabs.push(ct); changed=true; }
+                    else if(ct.updatedAt > lt.updatedAt){ 
+                        if(lt.content!==ct.content || lt.title!==ct.title){ lt.title=ct.title; lt.content=ct.content; lt.updatedAt=ct.updatedAt; changed=true; } 
+                    }
+                });
+                if(data.deleted.length !== allDeleted.length){ data.deleted = allDeleted; changed = true; }
+                if(data.tabs.length === 0){ data.tabs.push({id:'t_'+Date.now(),title:'便签',content:'',updatedAt:Date.now()}); data.active = data.tabs[0].id; changed = true; } 
+                else if (!data.tabs.find(t=>t.id===data.active)){ data.active = data.tabs[0].id; changed = true; }
+
+                const mergedJson = JSON.stringify({tabs: data.tabs, deleted: data.deleted});
+                const cloudJson = JSON.stringify({tabs: cloud.tabs, deleted: cloud.deleted});
+                if(mergedJson !== cloudJson){ await fetch('/api/notes',{method:'POST',headers:{'Content-Type':'application/json','Authorization':token},body:mergedJson}); }
+            } else { await fetch('/api/notes',{method:'POST',headers:{'Authorization':token},body:JSON.stringify(data)}); }
+            if(changed){ save(); render(); } 
+            setSt('ok','已同步'); document.getElementById('time').innerText=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+        } catch(e){ setSt('err','离线'); console.error(e);}
+    }
+
+    function onSearch(e){
+        const key=e.target.value; document.getElementById('search-x').style.display=key?'flex':'none'; if(!key)return exitSearch();
+        const t=data.tabs.find(x=>x.id===data.active); dom.editor.style.display='none'; dom.hl.style.display='block'; highlight(t?t.content:'');
+    }
+    
+    // 新增：预览/编辑切换
+    function togglePreview() {
+        if(dom.search.value) return; // 搜索时不切换
+        const isEdit = dom.editor.style.display !== 'none';
+        if(isEdit) {
+            dom.editor.style.display = 'none';
+            dom.hl.style.display = 'block';
+            renderMarkdown();
+        } else {
+            dom.editor.style.display = 'block';
+            dom.hl.style.display = 'none';
+            dom.editor.focus();
+        }
+    }
+
+    // 新增：Markdown渲染逻辑（支持代码块）
+    function renderMarkdown() {
+        const txt = dom.editor.value;
+        const parts = txt.split('```');
+        let html = '';
+        parts.forEach((part, i) => {
+            if(i % 2 === 0) { // 普通文本
+                html += part.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/\n/g, "<br>");
+            } else { // 代码块
+                let code = part.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+                if(code.startsWith('\n')) code = code.substring(1); // 去掉开头的换行
+                html += `<div class="code-card"><button class="copy-btn" onclick="copyCode(this)">复制</button><pre>${code}</pre></div>`;
+            }
+        });
+        dom.hl.innerHTML = html || '<span style="color:#999;font-size:13px;">(空)</span>';
+    }
+
+    // 新增：复制代码
+    function copyCode(btn) {
+        const pre = btn.nextElementSibling;
+        const text = pre.innerText;
+        navigator.clipboard.writeText(text).then(() => {
+            const original = btn.innerText;
+            btn.innerText = '已复制';
+            setTimeout(() => btn.innerText = original, 2000);
+        });
+    }
+
+    function highlight(content){
+        const key=dom.search.value; if(!key)return;
+        const esc=content.replace(/&/g,"&amp;").replace(/</g,"&lt;"); const reg=new RegExp(`(${key})`,'gi');
+        dom.hl.innerHTML=esc.replace(reg,'<mark>$1</mark>');
+    }
+    function exitSearch(){ dom.search.value=''; document.getElementById('search-x').style.display='none'; dom.editor.style.display='block'; dom.hl.style.display='none'; dom.editor.focus(); }
+    function save(){ localStorage.setItem('notes_v5',JSON.stringify(data)); }
+    function setSt(c,t){ if(dom.dot){ dom.dot.className=`dot ${c}`; dom.status.innerText=t; } }
+    function unlock(){ const v=document.getElementById('pass-input').value; if(v){ token=v; localStorage.setItem('notes_token',v); dom.mask.style.display='none'; sync(); } }
+    function toggleTheme(){ const c=document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark'; document.documentElement.setAttribute('data-theme',c); localStorage.setItem('theme',c); }
+    function exportTxt(){ const txt=data.tabs.map(t=>`【${t.title}】\n${t.content}\n\n`).join('---\n'); const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([txt],{type:"text/plain"})); a.download=`Notes_${new Date().toISOString().slice(0,10)}.txt`; a.click(); }
+    function importTxt(ipt){ const f=ipt.files[0]; if(!f)return; const r=new FileReader(); r.onload=e=>{ const id='imp_'+Date.now(); data.tabs.push({id,title:f.name.slice(0,6),content:e.target.result,updatedAt:Date.now()}); switchTab(id); sync(); }; r.readAsText(f); }
+</script>
+</body>
+</html>

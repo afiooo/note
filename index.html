@@ -5,8 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>极速云便签</title>
     <style>
+        :root { --bg: #ffffff; --text: #333; --text-sec: #666; --border: #e0e0e0; --bg-sec: #f9f9f9; --accent: #0070f3; --highlight: #ffeb3b; --danger: #ff4d4f; --code-bg: #f0f4f8; }
         :root { --bg: #ffffff; --text: #333; --text-sec: #666; --border: #e0e0e0; --bg-sec: #f9f9f9; --accent: #0070f3; --highlight: #ffeb3b; --danger: #ff4d4f; }
-        [data-theme="dark"] { --bg: #121212; --text: #e0e0e0; --text-sec: #aaa; --border: #333; --bg-sec: #1e1e1e; --accent: #4dabf7; --highlight: #665c14; --danger: #ff6b6b; }
+        [data-theme="dark"] { --bg: #121212; --text: #e0e0e0; --text-sec: #aaa; --border: #333; --bg-sec: #1e1e1e; --accent: #4dabf7; --highlight: #665c14; --danger: #ff6b6b; --code-bg: #1f2a3a; }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
         body, html { margin: 0; padding: 0; height: 100%; font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); display: flex; flex-direction: column; overflow: hidden; }
         
@@ -56,7 +57,7 @@
         .auth-card button { width: 100%; padding: 10px; background: var(--accent); color: #fff; border: none; border-radius: 4px; cursor: pointer; }
         
         /* 代码块极致紧凑样式 */
-        .code-card { position: relative; background: var(--bg-sec); border: 1px solid var(--border); border-radius: 4px; margin: 2px 0; padding: 6px 28px 6px 8px; }
+        .code-card { position: relative; background: var(--code-bg); border: 1px solid var(--border); border-radius: 4px; margin: 2px 0; padding: 6px 28px 6px 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); } }
         .code-card pre { margin: 0; padding: 0; overflow-x: auto; white-space: pre-wrap; word-break: break-all; font-family: monospace; color: var(--text); }
         .copy-btn { position: absolute; top: 2px; right: 2px; font-size: 16px; padding: 3px; background: transparent; border: none; color: var(--text-sec); cursor: pointer; opacity: 0.5; transition: opacity 0.2s; }
         .copy-btn:hover { opacity: 1; color: var(--accent); background: transparent; }

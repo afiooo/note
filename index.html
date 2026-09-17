@@ -42,9 +42,9 @@
         .tab-close:hover { opacity: 1; color: var(--danger); }
         .add-btn { width: 44px; display: flex; align-items: center; justify-content: center; font-size: 20px; cursor: pointer; border-left: 1px solid var(--border); background: var(--bg-sec); color: var(--text-sec); }
         
-        .editor-box { flex: 1; position: relative; }
+        .editor-box { flex: 1; position: relative; min-width: 0; overflow: hidden; }
         #editor { width: 100%; height: 100%; border: none; padding: 16px; font-size: 16px; line-height: 1.6; resize: none; background: var(--bg); color: var(--text); display: block; }
-        #highlight-layer { position: absolute; inset: 0; padding: 16px; font-size: 16px; line-height: 1.6; background: var(--bg); color: var(--text); overflow-y: auto; white-space: pre-wrap; z-index: 5; display: none; }
+        #highlight-layer { position: absolute; inset: 0; padding: 16px; font-size: 16px; line-height: 1.6; background: var(--bg); color: var(--text); overflow-y: auto; overflow-x: hidden; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; z-index: 5; display: none; }
         mark { background: var(--highlight); color: #000; border-radius: 2px; }
         
         .footer { height: 28px; padding: 0 12px; font-size: 11px; color: #999; border-top: 1px solid var(--border); background: var(--bg-sec); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
@@ -56,9 +56,9 @@
         .auth-card input { width: 100%; padding: 10px; margin: 15px 0; border: 1px solid var(--border); border-radius: 4px; background: var(--bg-sec); color: var(--text); }
         .auth-card button { width: 100%; padding: 10px; background: var(--accent); color: #fff; border: none; border-radius: 4px; cursor: pointer; }
         
-        /* 代码块极致紧凑样式 */
-        .code-card { position: relative; background: var(--code-bg); border: 1px solid var(--border); border-radius: 4px; margin: 2px 0; padding: 6px 28px 6px 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); } }
-        .code-card pre { margin: 0; padding: 0; overflow-x: auto; white-space: pre-wrap; word-break: break-all; font-family: monospace; color: var(--text); }
+        /* 代码块根据实际内容包裹背景，并保持原文格式 */
+        .code-card { position: relative; display: inline-block; max-width: 100%; background: var(--code-bg); border: 1px solid var(--border); border-radius: 4px; margin: 2px 0; padding: 6px 28px 6px 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); vertical-align: top; }
+        .code-card pre { margin: 0; padding: 0; max-width: 100%; overflow: visible; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; font-family: monospace; color: var(--text); }
         .copy-btn { position: absolute; top: 2px; right: 2px; font-size: 16px; padding: 3px; background: transparent; border: none; color: var(--text-sec); cursor: pointer; opacity: 0.5; transition: opacity 0.2s; }
         .copy-btn:hover { opacity: 1; color: var(--accent); background: transparent; }
     </style>
@@ -104,11 +104,9 @@
         
         dom.hl.addEventListener('click', (e) => {
             if (dom.search.value) exitSearch();
-            // 注意：这里不再有 togglePreview 的逻辑，必须双击才能编辑
         });
 
         setInterval(()=>{ if(token) sync(); }, 1000*60*60);
-        // 初始化强制预览逻辑由 render 处理
     };
 
     function render(){
@@ -123,12 +121,10 @@
         });
         const activeTab=data.tabs.find(t=>t.id===data.active);
         
-        // 数据填充
         if(activeTab){ 
             if(dom.editor.value!==activeTab.content) dom.editor.value=activeTab.content; 
         } else dom.editor.value='';
         
-        // 核心修改：切换标签时，如果内容不为空则预览，为空则编辑（例如新建时）
         if (!dom.search.value) {
             if (activeTab && activeTab.content) {
                 enterPreviewMode();
@@ -208,7 +204,6 @@
         const t=data.tabs.find(x=>x.id===data.active); dom.editor.style.display='none'; dom.hl.style.display='block'; highlight(t?t.content:'');
     }
     
-    // 手动切换按钮
     function togglePreview() {
         if(dom.search.value) return;
         const isEdit = dom.editor.style.display !== 'none';
@@ -216,21 +211,19 @@
         else enterEditMode();
     }
     
-    // 强制进入预览模式
     function enterPreviewMode() {
         dom.editor.style.display = 'none';
         dom.hl.style.display = 'block';
         renderMarkdown();
     }
 
-    // 强制进入编辑模式
     function enterEditMode() {
         dom.editor.style.display = 'block';
         dom.hl.style.display = 'none';
         dom.editor.focus();
     }
 
-    // 去除多余空行的紧凑Markdown渲染
+    // 代码块背景仅包裹实际内容，同时保留换行、空格并按屏幕宽度自动换行
     function renderMarkdown() {
         const txt = dom.editor.value;
         const parts = txt.split('```');

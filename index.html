@@ -56,9 +56,33 @@
         .auth-card input { width: 100%; padding: 10px; margin: 15px 0; border: 1px solid var(--border); border-radius: 4px; background: var(--bg-sec); color: var(--text); }
         .auth-card button { width: 100%; padding: 10px; background: var(--accent); color: #fff; border: none; border-radius: 4px; cursor: pointer; }
         
-        /* 代码块根据实际内容包裹背景，并保持原文格式 */
-        .code-card { position: relative; display: inline-block; max-width: 100%; background: var(--code-bg); border: 1px solid var(--border); border-radius: 4px; margin: 2px 0; padding: 6px 28px 6px 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); vertical-align: top; }
-        .code-card pre { margin: 0; padding: 0; max-width: 100%; overflow: visible; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; font-family: monospace; color: var(--text); }
+        /* 代码块背景只包裹内容，不与相邻文本处于同一行 */
+        .code-card {
+            position: relative;
+            display: block;
+            width: fit-content;
+            max-width: 100%;
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            margin: 2px 0;
+            padding: 6px 28px 6px 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            vertical-align: top;
+        }
+
+        .code-card pre {
+            margin: 0;
+            padding: 0;
+            max-width: 100%;
+            overflow: visible;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+            font-family: monospace;
+            color: var(--text);
+        }
+
         .copy-btn { position: absolute; top: 2px; right: 2px; font-size: 16px; padding: 3px; background: transparent; border: none; color: var(--text-sec); cursor: pointer; opacity: 0.5; transition: opacity 0.2s; }
         .copy-btn:hover { opacity: 1; color: var(--accent); background: transparent; }
     </style>
@@ -96,7 +120,6 @@
         dom.editor.addEventListener('input',onInput); dom.search.addEventListener('input',onSearch);
         document.getElementById('pass-input').addEventListener('keydown',e=>e.key==='Enter'&&unlock());
         
-        // 核心修改：双击预览层进入编辑模式，单击仅处理搜索退出
         dom.hl.addEventListener('dblclick', (e) => {
             if (e.target.tagName === 'BUTTON') return;
             enterEditMode();
@@ -223,7 +246,6 @@
         dom.editor.focus();
     }
 
-    // 代码块背景仅包裹实际内容，同时保留换行、空格并按屏幕宽度自动换行
     function renderMarkdown() {
         const txt = dom.editor.value;
         const parts = txt.split('```');
